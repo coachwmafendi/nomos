@@ -12,7 +12,7 @@ class CreateTransactionAction
         'description' => $data['description'],
         'amount'      => $data['amount'],
         'type'        => $data['type'],
-        'category'    => $data['category'],
+        'category_id'    => $data['category_id'],
         'date'        => \Carbon\Carbon::parse($data['date'])
                             ->setTimeFrom(now()), // ← tarikh dari user, masa dari sekarang
     ]);

@@ -23,13 +23,13 @@
                     </flux:navlist.item>
                     <flux:navlist.item 
                         icon="bolt" variant="solid" class="text-amber-500 dark:text-amber-300"
-                        href="{{ route('transactions') }}" 
+                        href="{{ route('report') }}" 
                         wire:navigate>
                         Payouts
                     </flux:navlist.item>
                     <flux:navlist.item 
                         icon="gift" variant="solid" class="text-amber-500 dark:text-amber-300"
-                        href="{{ route('transactions') }}" 
+                        href="{{ route('report') }}" 
                         wire:navigate>
                         Reports
                         
@@ -44,7 +44,11 @@
             
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
+               
+                <flux:navlist.item href="{{ route('categories') }}" icon="tag" :current="request()->routeIs('categories')">
+                    Categories
+                </flux:navlist.item>
+                 <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
                     {{ __('Repository') }}
                 </flux:sidebar.item>
 

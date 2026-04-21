@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string('category');
             $table->date('date');
             $table->timestamps();
+            $table->index(['date', 'type']);
+
         });
     }
 

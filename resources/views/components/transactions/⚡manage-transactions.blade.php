@@ -5,10 +5,12 @@ use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\Transaction;
+use App\Models\Category;
 use Flux\Flux;
 use App\Actions\CreateTransactionAction;
 use App\Actions\UpdateTransactionAction;
 use App\Actions\DeleteTransactionAction;
+use Illuminate\Support\Facades\Cache;
 
 new class extends Livewire\Component {
 
@@ -34,8 +36,9 @@ new class extends Livewire\Component {
     #[Validate('required|in:income,expense')]
     public string $type = 'expense';
 
-    #[Validate('required')]
-    public string $category = '';
+    #[Validate('nullable|exists:categories,id')]
+    public ?int $category_id = null;
+
 
     #[Validate('required|date')]
     public string $date = '';
@@ -70,10 +73,12 @@ new class extends Livewire\Component {
     // ==================
     // COMPUTED
     // ==================
+    // ✅ Selepas — eager load category
     #[Computed]
     public function transactions()
     {
         return Transaction::query()
+            ->with('category')           // <-- tambah ini
             ->when($this->search, fn($q) =>
                 $q->where('description', 'like', "%{$this->search}%")
             )
@@ -81,10 +86,9 @@ new class extends Livewire\Component {
                 $q->where('type', $this->filterType)
             )
             ->when($this->filterCategory, fn($q) =>
-                $q->where('category', $this->filterCategory)
+                $q->where('category_id', $this->filterCategory)
             )
             ->orderBy($this->sortBy, $this->sortDir)
-            ->orderBy('created_at', 'desc') // ← tambah ni sahaja
             ->paginate(10);
     }
 
@@ -100,11 +104,27 @@ new class extends Livewire\Component {
         return Transaction::where('type', 'expense')->sum('amount');
     }
 
-    #[Computed(persist: true)]
-    public function balance()
+    #[Computed(cache: true, seconds: 300)]
+    public function summary(): array
     {
-        return $this->totalIncome - $this->totalExpense;
+        $rows = Transaction::query()
+            ->selectRaw("type, SUM(amount) as total")
+            ->whereIn('type', ['income', 'expense'])
+            ->groupBy('type')
+            ->pluck('total', 'type');
+
+        return [
+            'income'  => (float) ($rows['income']  ?? 0),
+            'expense' => (float) ($rows['expense'] ?? 0),
+            'balance' => (float) ($rows['income']  ?? 0) - (float) ($rows['expense'] ?? 0),
+        ];
     }
+
+    // #[Computed(persist: true)]
+    // public function balance()
+    // {
+    //     return $this->totalIncome - $this->totalExpense;
+    // }
 
     #[Computed]
     public function isFiltering(): bool
@@ -113,22 +133,23 @@ new class extends Livewire\Component {
             || filled($this->filterType)
             || filled($this->filterCategory);
     }
-
-    #[Computed(persist: true)]
-    public function categories()
+    #[Computed]
+    public function categories(): array
     {
-        return [
-            'income'  => ['Salary', 'Freelance', 'Investment', 'Other Income'],
-            'expense' => ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Health', 'Other'],
-        ];
+        return Category::orderBy('name')
+            ->get()
+            ->groupBy('type')
+            ->map(fn($group) => $group->pluck('name', 'id')->toArray())
+            ->toArray();
     }
 
     // ==================
     // WATCHERS
     // ==================
+        
     public function updatedType(): void
     {
-        $this->category = '';
+        $this->category_id = null;
     }
 
     public function updatedSearch(): void
@@ -163,9 +184,12 @@ new class extends Livewire\Component {
 
         $action->handle($this->formData());
 
-         unset($this->totalIncome, $this->totalExpense, $this->transactions);
+        unset($this->summary, $this->transactions);
 
         $this->resetForm();
+        
+        $this->clearChartCache();
+
 
         Flux::toast(
             text: 'Transaction added successfully!',
@@ -179,7 +203,7 @@ new class extends Livewire\Component {
             'description' => $this->description,
             'amount'      => $this->amount,
             'type'        => $this->type,
-            'category'    => $this->category,
+            'category_id' => $this->category_id,  // ← betul
             'date'        => $this->date,
         ];
     }
@@ -195,7 +219,7 @@ new class extends Livewire\Component {
         $this->description = $transaction->description;
         $this->amount      = (string) $transaction->amount;
         $this->type        = $transaction->type;
-        $this->category    = $transaction->category;
+        $this->category_id = $transaction->category_id;
         $this->date        = $transaction->date->format('Y-m-d'); // ← Carbon object terus
 
         $this->resetValidation();
@@ -204,21 +228,21 @@ new class extends Livewire\Component {
     }
 
     public function update(UpdateTransactionAction $action): void
-{
-    $this->validate();
+        {
+            $this->validate();
 
-    $action->handle($this->editId, $this->formData());
+            $action->handle($this->editId, $this->formData());
 
-    // unset DULU sebelum resetForm()
-    unset($this->totalIncome, $this->totalExpense, $this->transactions);
+            // unset DULU sebelum resetForm()
+            unset($this->summary, $this->transactions);
 
-    $this->resetForm();
+            $this->resetForm();
 
-    Flux::toast(
-        text: 'Transaction updated successfully!',
-        variant: 'success',
-    );
-}
+            Flux::toast(
+                text: 'Transaction updated successfully!',
+                variant: 'success',
+            );
+    }
 
     // ==================
     // DELETE
@@ -239,11 +263,14 @@ new class extends Livewire\Component {
 
         $action->handle($this->deleteId);
 
-        unset($this->totalIncome, $this->totalExpense, $this->transactions);
-
+        // unset($this->totalIncome, $this->totalExpense, $this->transactions);
+        unset( $this->summary,  $this->transactions );
+    
         $this->deleteId          = null;
         $this->deleteDescription = '';
         $this->showDeleteModal   = false;
+
+        $this->clearChartCache();
 
         Flux::toast(
             text: 'Transaction deleted!',
@@ -263,79 +290,119 @@ new class extends Livewire\Component {
     // ==================
     public function resetForm(): void
     {
-        $this->reset(['description', 'amount', 'category', 'editId']);
+        $this->reset(['description', 'amount', 'category_id', 'editId']);
         $this->date      = now()->format('Y-m-d');
         $this->type      = 'expense';
         $this->mode      = 'create';
         $this->showModal = false;
         $this->resetValidation();
     }
+
+    protected function clearChartCache(): void
+    {
+        $year = now()->year;
+
+        // Clear semua bulan untuk tahun semasa
+        Cache::forget("chart_data_{$year}_");
+        for ($m = 1; $m <= 12; $m++) {
+            Cache::forget("chart_data_{$year}_{$m}");
+        }
+
+        // Clear tahun lain kalau transaction date berbeza tahun
+        if ($this->date) {
+            $txYear = \Carbon\Carbon::parse($this->date)->year;
+            if ($txYear !== $year) {
+                Cache::forget("chart_data_{$txYear}_");
+                for ($m = 1; $m <= 12; $m++) {
+                    Cache::forget("chart_data_{$txYear}_{$m}");
+                }
+            }
+        }
+    }   
 };
 ?>
 
 <div class="p-6 space-y-6">
 
     {{-- HEADER --}}
-    <div class="flex items-center justify-between">
-        <flux:heading size="xl">💰 Nomos</flux:heading>
-
-        <flux:button wire:click="openCreate" variant="primary" icon="plus">
-            Add Transaction
-        </flux:button>
-    </div>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <flux:heading size="xl">💰 Nomos</flux:heading>
+    
+    <flux:button wire:click="openCreate" variant="primary" icon="plus">
+        Add Transaction
+    </flux:button> 
+</div>
 
     
     {{-- SUMMARY CARDS --}}
-    <div class="grid grid-cols-3 gap-4">
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
-            <flux:subheading>Total Income</flux:subheading>
-            <p class="text-2xl font-bold text-green-500 mt-1">
-                RM {{ number_format($this->totalIncome, 2) }}
-            </p>
-        </div>
-
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
-            <flux:subheading>Total Expense</flux:subheading>
-            <p class="text-2xl font-bold text-red-500 mt-1">
-                RM {{ number_format($this->totalExpense, 2) }}
-            </p>
-        </div>
-
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
-            <flux:subheading>Balance</flux:subheading>
-            <p class="text-2xl font-bold mt-1 {{ $this->balance >= 0 ? 'text-blue-500' : 'text-red-500' }}">
-                RM {{ number_format($this->balance, 2) }}
-            </p>
-        </div>
+    {{-- Tukar dari grid-cols-3 kepada responsive --}}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
+        <flux:subheading>Total Income</flux:subheading>
+        <p class="text-2xl font-bold text-green-500 mt-1">
+            RM {{ number_format($this->summary['income'], 2) }}
+        </p>
     </div>
-    
+
+    <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
+        <flux:subheading>Total Expense</flux:subheading>
+        <p class="text-2xl font-bold text-red-500 mt-1">
+            RM {{ number_format($this->summary['expense'], 2) }}
+        </p>
+    </div>
+
+    <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
+        <flux:subheading>Balance</flux:subheading>
+        <p class="text-2xl font-bold mt-1 {{ $this->summary['balance'] >= 0 ? 'text-blue-500' : 'text-red-500' }}">
+            RM {{ number_format($this->summary['balance'], 2) }}
+        </p>
+    </div>
+</div>
+
+{{-- Chart component --}}
+<livewire:transaction-chart />
+
 
     {{-- FILTERS --}}
-    <div class="grid grid-cols-3 gap-4">
-        <flux:input
-            wire:model.live.debounce.300ms="search"
-            placeholder="Search transactions..."
-            icon="magnifying-glass"
-            clearable />
+    {{-- Tukar dari grid-cols-3 kepada responsive --}}
+<div class="grid gap-4" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+    <flux:input
+        wire:model.live.debounce.300ms="search"
+        placeholder="Search transactions..."
+        icon="magnifying-glass"
+        clearable />
 
-        <flux:select wire:model.live="filterType" placeholder="All Types">
-            <flux:select.option value="">All Types</flux:select.option>
-            <flux:select.option value="income">Income</flux:select.option>
-            <flux:select.option value="expense">Expense</flux:select.option>
-        </flux:select>
+    <flux:select wire:model.live="filterType" placeholder="All Types">
+        <flux:select.option value="">All Types</flux:select.option>
+        <flux:select.option value="income">Income</flux:select.option>
+        <flux:select.option value="expense">Expense</flux:select.option>
+    </flux:select>
+    <flux:select wire:model.live="filterCategory" placeholder="All Categories">
+    <flux:select.option value="">All Categories</flux:select.option>
 
-        <flux:select wire:model.live="filterCategory" placeholder="All Categories">
-            <flux:select.option value="">All Categories</flux:select.option>
-            @foreach(['Salary','Freelance','Investment','Other Income','Food','Transport','Shopping','Bills','Entertainment','Health','Other'] as $cat)
-                <flux:select.option value="{{ $cat }}">{{ $cat }}</flux:select.option>
+    @if(!empty($this->categories['income']))
+        <optgroup label="── Income ──">
+            @foreach($this->categories['income'] as $id => $name)
+                <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
             @endforeach
-        </flux:select>
-    </div>
+        </optgroup>
+    @endif
+
+    @if(!empty($this->categories['expense']))
+        <optgroup label="── Expense ──">
+            @foreach($this->categories['expense'] as $id => $name)
+                <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+            @endforeach
+        </optgroup>
+    @endif
+</flux:select>
+</div>
 
     
 
      
     {{-- TABLE --}}
+    <div class="overflow-x-auto">
     <flux:table :paginate="$this->transactions">
         <flux:table.columns>
             <flux:table.column
@@ -384,7 +451,7 @@ new class extends Livewire\Component {
                     </flux:table.cell>
 
                     <flux:table.cell>
-                        {{ $transaction->category }}
+                        {{ $transaction->category?->name ?? '—' }}
                     </flux:table.cell>
 
                     <flux:table.cell>
@@ -449,9 +516,7 @@ new class extends Livewire\Component {
                         Clear Filters
                     </flux:button>
                 @else
-                    <flux:button wire:click="openCreate" variant="primary" icon="plus" size="sm">
-                        Add First Transaction
-                    </flux:button>
+                     
                 @endif
 
 
@@ -468,103 +533,122 @@ new class extends Livewire\Component {
 
         </flux:table.rows>
     </flux:table>
+    </div>
     
 
     {{-- MODAL (Create & Edit) --}}
-    <flux:modal wire:model.self="showModal" class="w-full max-w-md">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        <div class="space-y-6">
-            <flux:heading size="lg">
-                {{ $mode === 'create' ? 'Add Transaction' : 'Edit Transaction' }}
-            </flux:heading>
+        <flux:modal wire:model.self="showModal" class="w-full max-w-md">
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-6">
+                <flux:heading size="lg">
+                    {{ $mode === 'create' ? 'Add Transaction' : 'Edit Transaction' }}
+                </flux:heading>
 
-                <div class="col-span-2">
-                    <flux:input
-                        wire:model="description"
-                        label="Description"
-                        placeholder="e.g. Zus Coffee" />
-                    @error('description')
-                        <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                <div class="grid grid-cols-2 gap-4">
+
+                    <div class="col-span-2">
+                        <flux:input
+                            wire:model="description"
+                            label="Description"
+                            placeholder="e.g. Zus Coffee" />
+                        @error('description')
+                            <flux:error>{{ $message }}</flux:error>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <flux:input
+                            type="number"
+                            wire:model="amount"
+                            label="Amount (RM)"
+                            placeholder="0.00"
+                            step="0.01" />
+                        @error('amount')
+                            <flux:error>{{ $message }}</flux:error>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <flux:select wire:model.live="type" label="Type">
+                            <flux:select.option value="expense">Expense</flux:select.option>
+                            <flux:select.option value="income">Income</flux:select.option>
+                        </flux:select>
+                        @error('type')
+                            <flux:error>{{ $message }}</flux:error>
+                        @enderror
+                    </div>
+
+                    <div>
+                      {{-- ✅ Guna @foreach biasa dengan check type --}}
+                        <flux:field>
+                            <flux:label>Category</flux:label>
+                            <flux:select wire:model="category_id">
+                                <flux:select.option value="">— No Category —</flux:select.option>
+
+                                @if($type === 'income' || $type === 'both')
+                                    <optgroup label="Income">
+                                        @foreach($this->categories['income'] ?? [] as $id => $name)
+                                            <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+
+                                @if($type === 'expense' || $type === 'both')
+                                    <optgroup label="Expense">
+                                        @foreach($this->categories['expense'] ?? [] as $id => $name)
+                                            <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+                            </flux:select>
+                            <flux:error name="category_id" />
+                        </flux:field>
+                    </div>
+
+                    <div>
+                        <flux:input
+                            type="date"
+                            wire:model="date"
+                            value="{{ $date }}"
+                            label="Date" />
+                        @error('date')
+                            <flux:error>{{ $message }}</flux:error>
+                        @enderror
+                    </div>
+
                 </div>
 
-                <div>
-                    <flux:input
-                        type="number"
-                        wire:model="amount"
-                        label="Amount (RM)"
-                        placeholder="0.00"
-                        step="0.01" />
-                    @error('amount')
-                        <flux:error>{{ $message }}</flux:error>
-                    @enderror
-                </div>
+                <div class="flex gap-3 justify-end">
+                    <flux:button wire:click="resetForm" variant="ghost">
+                        Cancel
+                    </flux:button>
 
-                <div>
-                    <flux:select wire:model.live="type" label="Type">
-                        <flux:select.option value="expense">Expense</flux:select.option>
-                        <flux:select.option value="income">Income</flux:select.option>
-                    </flux:select>
-                    @error('type')
-                        <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                    @if($mode === 'create')
+                        <flux:button
+                            wire:click="save"
+                            variant="primary"
+                            wire:loading.attr="disabled"
+                            wire:target="save">
+                            <span wire:loading.remove wire:target="save">Add Transaction</span>
+                            <span wire:loading wire:target="save">Saving...</span>
+                        </flux:button>
+                    @else
+                        <flux:button
+                            wire:click="update"
+                            variant="primary"
+                            wire:loading.attr="disabled"
+                            wire:target="update">
+                            <span wire:loading.remove wire:target="update">Update</span>
+                            <span wire:loading wire:target="update">Updating...</span>
+                        </flux:button>
+                    @endif
                 </div>
-
-                <div>
-                    <flux:select wire:model="category" label="Category">
-                        <flux:select.option value="">Select Category</flux:select.option>
-                        @foreach($this->categories[$this->type] as $cat)
-                            <flux:select.option value="{{ $cat }}">{{ $cat }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                    @error('category')
-                        <flux:error>{{ $message }}</flux:error>
-                    @enderror
-                </div>
-
-                <div>
-                    <flux:input
-                        type="date"
-                        wire:model="date"
-                        value="{{ $date }}"
-                        label="Date" />
-                    @error('date')
-                        <flux:error>{{ $message }}</flux:error>
-                    @enderror
-                </div>
-
             </div>
 
-            <div class="flex gap-3 justify-end">
-                <flux:button wire:click="resetForm" variant="ghost">
-                    Cancel
-                </flux:button>
-
-                @if($mode === 'create')
-                    <flux:button
-                        wire:click="save"
-                        variant="primary"
-                        wire:loading.attr="disabled"
-                        wire:target="save">
-                        <span wire:loading.remove wire:target="save">Add Transaction</span>
-                        <span wire:loading wire:target="save">Saving...</span>
-                    </flux:button>
-                @else
-                    <flux:button
-                        wire:click="update"
-                        variant="primary"
-                        wire:loading.attr="disabled"
-                        wire:target="update">
-                        <span wire:loading.remove wire:target="update">Update</span>
-                        <span wire:loading wire:target="update">Updating...</span>
-                    </flux:button>
-                @endif
-            </div>
-        </div>
-
-    </flux:modal>
+        </flux:modal>
+    </div>
 
     {{-- DELETE CONFIRM MODAL --}}
 <flux:modal wire:model.self="showDeleteModal" class="w-full max-w-sm">
