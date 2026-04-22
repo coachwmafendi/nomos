@@ -326,6 +326,7 @@ new class extends Livewire\Component {
 
     {{-- HEADER --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    
     <flux:heading size="xl">💰 Nomos</flux:heading>
     
     <flux:button wire:click="openCreate" variant="primary" icon="plus">
@@ -336,7 +337,10 @@ new class extends Livewire\Component {
     
     {{-- SUMMARY CARDS --}}
     {{-- Tukar dari grid-cols-3 kepada responsive --}}
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+
+    {{-- <div class="grid gap-4" style="grid-template-columns: repeat(3, minmax(0, 1fr));"> --}}
+
     <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
         <flux:subheading>Total Income</flux:subheading>
         <p class="text-2xl font-bold text-green-500 mt-1">

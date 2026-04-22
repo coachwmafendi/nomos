@@ -12,9 +12,16 @@
 
             <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
+                    {{-- <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
-                    </flux:sidebar.item>
+                    </flux:sidebar.item> --}}
+                     
+                    <flux:navlist.item 
+                        icon="home" 
+                        href="{{ route('dashboard') }}"
+                        wire:navigate>
+                        Dashboard
+                    </flux:navlist.item>
                     <flux:navlist.item 
                         icon="banknotes" 
                         href="{{ route('transactions') }}" 
@@ -23,12 +30,12 @@
                     </flux:navlist.item>
                     <flux:navlist.item 
                         icon="bolt" variant="solid" class="text-amber-500 dark:text-amber-300"
-                        href="{{ route('report') }}" 
+                        href="{{ route('bars-report') }}" 
                         wire:navigate>
-                        Payouts
+                        Bar Reports
                     </flux:navlist.item>
                     <flux:navlist.item 
-                        icon="gift" variant="solid" class="text-amber-500 dark:text-amber-300"
+                        icon="chart-bar" variant="solid" class="text-amber-500 dark:text-amber-300"
                         href="{{ route('report') }}" 
                         wire:navigate>
                         Reports

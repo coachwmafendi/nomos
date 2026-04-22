@@ -56,7 +56,7 @@ new class extends Component {
     {
         $this->validate([
             'name' => 'required|string|min:2|max:50',
-            'type' => 'required|in:income,expense,both',
+            'type' => 'required|in:income,expense',
         ]);
 
         Category::updateOrCreate(
@@ -96,7 +96,7 @@ new class extends Component {
 };
 ?>
 
-<div class="space-y-2 w-5/6">
+<div class="space-y-2 w-1/4">
 
     {{-- Header --}}
     <div class="flex items-center justify-between">
@@ -117,6 +117,7 @@ new class extends Component {
         <flux:table.column>Type</flux:table.column>
         <flux:table.column>Transactions</flux:table.column>
         <flux:table.column class="text-right" align="end">Action</flux:table.column>
+
     </flux:table.columns>
 
     <flux:table.rows>
@@ -179,7 +180,6 @@ new class extends Component {
                 <flux:select wire:model="type">
                     <flux:select.option value="expense">Expense</flux:select.option>
                     <flux:select.option value="income">Income</flux:select.option>
-                    <flux:select.option value="both">Both</flux:select.option>
                 </flux:select>
                 <flux:error name="type" />
             </flux:field>
