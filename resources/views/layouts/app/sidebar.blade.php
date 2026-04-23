@@ -28,6 +28,9 @@
                         wire:navigate>
                         Transactions
                     </flux:navlist.item>
+                    <flux:navlist.item href="{{ route('budget') }}" icon="chart-bar" :current="request()->routeIs('budget')">
+                        Budget
+                    </flux:navlist.item>
                     <flux:navlist.item 
                         icon="bolt" variant="solid" class="text-amber-500 dark:text-amber-300"
                         href="{{ route('bars-report') }}" 

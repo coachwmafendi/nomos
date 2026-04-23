@@ -12,7 +12,8 @@ use App\Actions\UpdateTransactionAction;
 use App\Actions\DeleteTransactionAction;
 use Illuminate\Support\Facades\Cache;
 
-new class extends Livewire\Component {
+
+new #[Title('Manage Your Transactions')] class extends Livewire\Component {
 
     use WithPagination;
 
@@ -51,6 +52,10 @@ new class extends Livewire\Component {
     // --- Sorting ---
     public string $sortBy = 'date';
     public string $sortDir = 'desc';
+
+    //-- for dates for filter and download --
+    public string $dateFrom = '';
+    public string $dateTo = '';
 
     public function mount(): void
     {
@@ -92,6 +97,15 @@ new class extends Livewire\Component {
             ->paginate(10);
     }
 
+
+    public function exportCsv(): void
+    {
+        $this->redirect(route('transactions.export', [
+        'from' => $this->dateFrom,
+        'to'   => $this->dateTo,
+    ]));
+    }
+
     #[Computed(persist: true)]
     public function totalIncome()
     {
@@ -119,12 +133,6 @@ new class extends Livewire\Component {
             'balance' => (float) ($rows['income']  ?? 0) - (float) ($rows['expense'] ?? 0),
         ];
     }
-
-    // #[Computed(persist: true)]
-    // public function balance()
-    // {
-    //     return $this->totalIncome - $this->totalExpense;
-    // }
 
     #[Computed]
     public function isFiltering(): bool
@@ -327,19 +335,51 @@ new class extends Livewire\Component {
     {{-- HEADER --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     
-    <flux:heading size="xl">💰 Nomos</flux:heading>
     
-    <flux:button wire:click="openCreate" variant="primary" icon="plus">
-        Add Transaction
-    </flux:button> 
+    <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
+    <h2 class="text-lg font-semibold">Transactions</h2>
+        <div class="flex items-center gap-3">
+
+            {{-- Date Filter --}}
+            <flux:input
+                type="date"
+                wire:model.live="dateFrom"
+                label="From"
+            />
+            <span class="text-gray-400 mt-5">→</span>
+            <flux:input
+                type="date"
+                wire:model.live="dateTo"
+                label="To"
+            />
+
+            {{-- Export --}}
+            <flux:button
+                wire:click="exportCsv"
+                icon="arrow-down-tray"
+                variant="ghost"
+            >
+                Export CSV
+            </flux:button>
+
+            {{-- Add --}}
+            <flux:button
+                wire:click="openCreate()"
+                icon="plus"
+                variant="primary"
+            >
+                Add Transaction
+            </flux:button>
+
+        </div>
+</div>
 </div>
 
     
     {{-- SUMMARY CARDS --}}
     {{-- Tukar dari grid-cols-3 kepada responsive --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-
-    {{-- <div class="grid gap-4" style="grid-template-columns: repeat(3, minmax(0, 1fr));"> --}}
+    @island('summary-card', always:true)
+    <div wire:sort class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
 
     <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
         <flux:subheading>Total Income</flux:subheading>
@@ -347,6 +387,7 @@ new class extends Livewire\Component {
             RM {{ number_format($this->summary['income'], 2) }}
         </p>
     </div>
+
 
     <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
         <flux:subheading>Total Expense</flux:subheading>
@@ -362,6 +403,7 @@ new class extends Livewire\Component {
         </p>
     </div>
 </div>
+@endisland
 
 {{-- Chart component --}}
 <livewire:transaction-chart />
