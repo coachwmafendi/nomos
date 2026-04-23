@@ -22,26 +22,45 @@
                         wire:navigate>
                         Dashboard
                     </flux:navlist.item>
+
                     <flux:navlist.item 
                         icon="banknotes" 
                         href="{{ route('transactions') }}" 
                         wire:navigate>
                         Transactions
                     </flux:navlist.item>
-                    <flux:navlist.item href="{{ route('budget') }}" icon="chart-bar" :current="request()->routeIs('budget')">
+                    
+                    <flux:navlist.item href="{{ route('budget') }}" icon="chart-bar" 
+                    :current="request()->routeIs('budget')">
                         Budget
                     </flux:navlist.item>
+                    
+                    <flux:navlist.item 
+                        icon="arrow-path" 
+                        href="{{ route('recurring') }}" 
+                        wire:navigate>
+                        Recurring
+                    </flux:navlist.item>
+
                     <flux:navlist.item 
                         icon="bolt" variant="solid" class="text-amber-500 dark:text-amber-300"
                         href="{{ route('bars-report') }}" 
                         wire:navigate>
                         Bar Reports
                     </flux:navlist.item>
+
                     <flux:navlist.item 
                         icon="chart-bar" variant="solid" class="text-amber-500 dark:text-amber-300"
                         href="{{ route('report') }}" 
                         wire:navigate>
-                        Reports
+                        Reports    
+                    </flux:navlist.item>
+
+                    <flux:navlist.item 
+                        icon="chart-bar" variant="solid" class="text-amber-500 dark:text-amber-300"
+                        href="{{ route('quote') }}" 
+                        wire:navigate>
+                        Quote
                         
                     </flux:navlist.item>
 

@@ -3,6 +3,7 @@
 use App\Http\Controllers\ExportController;
 use Illuminate\Support\Facades\Route;
 
+
 Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -12,7 +13,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/bars-report', 'bars-report')->name('bars-report');
     Route::livewire('/transaction-report', 'transactions.transaction-report')->name('report');
     Route::livewire('/budget', 'budget')->name('budget');
+    Route::livewire('/quote', 'financial-quote')->name('quote');
+    Route::livewire('/recurring', 'recurring-transactions')->name('recurring');
 
+    
     //route for export
     Route::get('/transactions/export', [ExportController::class, 'csv'])->name('transactions.export');
 

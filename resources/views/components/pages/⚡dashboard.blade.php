@@ -49,18 +49,40 @@ new class extends Component {
     }
 
     #[Computed]
-    public function weeklyData()
+public function weeklyData()
+{
+    // Fixed: selalu 7 hari lepas — tidak ikut dateFrom/dateTo
+    $results = Transaction::where('type', 'expense')
+        ->where('date', '>=', Carbon::now()->subDays(6)->startOfDay())
+        ->where('date', '<=', Carbon::now()->endOfDay())
+        ->selectRaw('DATE(date) as day, SUM(amount) as total')
+        ->groupBy('day')
+        ->orderBy('day')
+        ->get()
+        ->keyBy('day');
+
+    $days = [];
+    $currentDate = Carbon::now()->subDays(6);
+
+    while ($currentDate->lte(Carbon::now())) {
+        $key    = $currentDate->toDateString();
+        $days[] = [
+            'day'   => $currentDate->format('d/m'),
+            'total' => (float) ($results[$key]->total ?? 0),
+        ];
+        $currentDate->addDay();
+    }
+
+    return collect($days);
+}
+
+    #[Computed]
+    public function pendingRecurring()
     {
-        return Transaction::where('type', 'expense')
-            ->whereBetween('date', [$this->dateFrom, $this->dateTo])
-            ->selectRaw('DATE(date) as day, SUM(amount) as total')
-            ->groupBy('day')
-            ->orderBy('day')
-            ->get()
-            ->map(fn($item) => [
-                'day'   => Carbon::parse($item->day)->format('D'),
-                'total' => (float) $item->total,
-            ]);
+            return \App\Models\RecurringTransaction::with('category')
+                ->where('user_id', auth()->id())
+                ->dueToday()
+                ->get();
     }
 
     #[Computed]
@@ -99,6 +121,33 @@ new class extends Component {
         </div>
     </div>
 
+    {{-- Recurring Pending Banner --}}
+        @if($this->pendingRecurring->count() > 0)
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
+                    <div>
+                        <p class="font-semibold text-sm text-amber-400">
+                            {{ $this->pendingRecurring->count() }} Recurring Transaction Pending
+                        </p>
+                        <p class="text-xs text-amber-400/70 mt-0.5">
+                            {{ $this->pendingRecurring->pluck('name')->join(', ') }}
+                        </p>
+                    </div>
+                </div>
+                <flux:button
+                    href="{{ route('recurring.pending') }}"
+                    size="sm"
+                    variant="ghost"
+                    class="text-amber-400 border-amber-500/30"
+                >
+                    Review Now →
+                </flux:button>
+            </div>
+        </div>
+        @endif
+
     {{-- Summary Cards --}}
     <x-dashboard.blade-summary-cards
         :totalIncome="$this->totalIncome"
@@ -108,7 +157,12 @@ new class extends Component {
 
     {{-- Charts --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <x-dashboard.blade-weekly-spending-chart :weeklyData="$this->weeklyData" />
+        {{-- <x-dashboard.blade-weekly-spending-chart :weeklyData="$this->weeklyData" /> --}}
+            
+            <x-dashboard.blade-weekly-spending-chart
+                :weeklyData="$this->weeklyData"
+                wire:key="weekly-{{ $dateFrom }}-{{ $dateTo }}"
+            />
         <x-dashboard.blade-top-categories
             :topCategories="$this->topCategories"
             :totalExpense="$this->totalExpense"
