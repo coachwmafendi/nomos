@@ -14,7 +14,11 @@ new class extends Component {
     {
         $this->dateFrom = now()->startOfMonth()->format('Y-m-d');
         $this->dateTo   = now()->endOfMonth()->format('Y-m-d');
+
+        //  $this->dateFrom = now()->startOfMonth()->toDateString();
+        // $this->dateTo = now()->endOfMonth()->toDateString();
     }
+    
 
     #[Computed]
     public function totalIncome()
@@ -49,32 +53,99 @@ new class extends Component {
     }
 
     #[Computed]
-public function weeklyData()
-{
-    // Fixed: selalu 7 hari lepas — tidak ikut dateFrom/dateTo
-    $results = Transaction::where('type', 'expense')
-        ->where('date', '>=', Carbon::now()->subDays(6)->startOfDay())
-        ->where('date', '<=', Carbon::now()->endOfDay())
-        ->selectRaw('DATE(date) as day, SUM(amount) as total')
-        ->groupBy('day')
-        ->orderBy('day')
-        ->get()
-        ->keyBy('day');
+    public function weeklyData()
+    {
+        // Fixed: selalu 7 hari lepas — tidak ikut dateFrom/dateTo
+        $results = Transaction::where('type', 'expense')
+            ->where('date', '>=', Carbon::now()->subDays(6)->startOfDay())
+            ->where('date', '<=', Carbon::now()->endOfDay())
+            ->selectRaw('DATE(date) as day, SUM(amount) as total')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->keyBy('day');
 
-    $days = [];
-    $currentDate = Carbon::now()->subDays(6);
+        $days = [];
+        $currentDate = Carbon::now()->subDays(6);
 
-    while ($currentDate->lte(Carbon::now())) {
-        $key    = $currentDate->toDateString();
-        $days[] = [
-            'day'   => $currentDate->format('d/m'),
-            'total' => (float) ($results[$key]->total ?? 0),
-        ];
-        $currentDate->addDay();
+        while ($currentDate->lte(Carbon::now())) {
+            $key    = $currentDate->toDateString();
+            $days[] = [
+                'day'   => $currentDate->format('d/m'),
+                'total' => (float) ($results[$key]->total ?? 0),
+            ];
+            $currentDate->addDay();
+        }
+
+        return collect($days);
     }
 
-    return collect($days);
-}
+
+    #[Computed]
+    public function monthComparison()
+    {
+        $today = Carbon::today();
+
+        $currentStart = $today->copy()->startOfMonth();
+        $currentEnd = $today->copy()->endOfDay();
+
+        $previousStart = $today->copy()->subMonthNoOverflow()->startOfMonth();
+        $previousEnd = $previousStart->copy()->day(
+            min($today->day, $previousStart->copy()->endOfMonth()->day)
+        )->endOfDay();
+
+        $thisMonth = Transaction::where('type', 'expense')
+            ->whereBetween('date', [$currentStart, $currentEnd])
+            ->sum('amount');
+
+        $lastMonth = Transaction::where('type', 'expense')
+            ->whereBetween('date', [$previousStart, $previousEnd])
+            ->sum('amount');
+
+        $difference = $thisMonth - $lastMonth;
+
+        $percentage = $lastMonth > 0
+            ? ($difference / $lastMonth) * 100
+            : null;
+
+        return [
+            'this_month' => (float) $thisMonth,
+            'last_month' => (float) $lastMonth,
+            'difference' => (float) $difference,
+            'percentage' => $percentage,
+            'is_up' => $difference > 0,
+            'is_down' => $difference < 0,
+            'label' => 'Month to date vs last month',
+        ];
+    }
+
+    #[Computed]
+    public function comparisonSparkline()
+    {
+        $results = Transaction::where('type', 'expense')
+            ->where('date', '>=', Carbon::now()->subDays(6)->startOfDay())
+            ->where('date', '<=', Carbon::now()->endOfDay())
+            ->selectRaw('DATE(date) as day, SUM(amount) as total')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->keyBy('day');
+
+        $days = [];
+        $currentDate = Carbon::now()->subDays(6);
+
+        while ($currentDate->lte(Carbon::now())) {
+            $key = $currentDate->toDateString();
+
+            $days[] = (float) ($results[$key]->total ?? 0);
+
+            $currentDate->addDay();
+        }
+
+        return $days;
+    }
+        
+    
 
     #[Computed]
     public function pendingRecurring()
@@ -154,6 +225,12 @@ public function weeklyData()
         :totalExpense="$this->totalExpense"
         :balance="$this->balance"
     />
+
+    {{-- <x-dashboard.monthly-comparison :comparison="$this->monthComparison" /> --}}
+        <x-dashboard.monthly-comparison
+            :comparison="$this->monthComparison"
+            :sparkline="$this->comparisonSparkline"
+        />
 
     {{-- Charts --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
