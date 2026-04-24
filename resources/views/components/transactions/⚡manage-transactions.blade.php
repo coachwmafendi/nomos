@@ -17,12 +17,17 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 new #[Title('Manage Your Transactions')] class extends Component {
+
     use WithPagination;
     use WithFileUploads;
 
     public bool $showModal = false;
     public string $mode = 'create';
     public ?int $editId = null;
+
+    public $isDragging = false;
+    public $receipt = null;
+
 
     public bool $showDeleteModal = false;
     public ?int $deleteId = null;
@@ -61,6 +66,24 @@ new #[Title('Manage Your Transactions')] class extends Component {
         $this->date = now()->format('Y-m-d');
         // $this->date = now()->format('Y-m-d\TH:i');
 
+    }
+
+     // Handle file drop
+    public function handleFileDrop($files)
+    {
+        $this->isDragging = false;
+
+        if (!empty($files)) {
+            $this->receipt = $files[0]; // Ambil file pertama
+            $this->validateOnly('receipt');
+        }
+    }
+
+    // Handle file input change
+    public function handleFileUpload($file)
+    {
+        $this->receipt = $file;
+        $this->validateOnly('receipt');
     }
 
     public function sort(string $column): void
@@ -458,7 +481,7 @@ new #[Title('Manage Your Transactions')] class extends Component {
             @endif
         </flux:select>
     </div>
-
+{{-- 
     {{-- TABLE --}}
     <div class="overflow-x-auto">
         <flux:table :paginate="$this->transactions">
@@ -550,8 +573,7 @@ new #[Title('Manage Your Transactions')] class extends Component {
                                     inset="top bottom" />
 
                                 <flux:button
-                                    wire:click="confirmDelete({{ $transaction->id }}, '{{ $transaction->description }}')"
-                                    variant="ghost"
+                                    wire:click="confirmDelete({{ $transaction->id }}, @js($transaction->description))"                                    variant="ghost"
                                     size="sm"
                                     icon="trash"
                                     inset="top bottom"
@@ -593,11 +615,19 @@ new #[Title('Manage Your Transactions')] class extends Component {
                 @endforelse
             </flux:table.rows>
         </flux:table>
-    </div>
+    </div> --}}
+
+    {{-- Calling sub component --}}
+    <x-transactions.transactions-table 
+    transactions="$this->transactions"
+    :sort-by="$sortBy"
+    :sort-dir="$sortDir"
+    :is-filtering="$this->isFiltering"
+    />
 
     {{-- MODAL (Create & Edit) --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <flux:modal wire:model.self="showModal" class="w-full max-w-md">
+        <flux:modal wire:model.self="showModal" class="w-full max-w-max">
             <div class="space-y-6">
                 <flux:heading size="lg">
                     {{ $mode === 'create' ? 'Add Transaction' : 'Edit Transaction' }}
@@ -673,8 +703,13 @@ new #[Title('Manage Your Transactions')] class extends Component {
                         @enderror
                     </div>
 
-                    <div class="col-span-2">
-                        <flux:field>
+                    {{-- Cointainer File Upload --}}
+                    <div class="col-span-2" 
+                    wire:drop="handleFileDrop" 
+                        wire:dragover="$set('isDragging', true)"
+                        wire:dragleave="$set('isDragging', false)"
+                        >
+                                            <flux:field>
                             <flux:label>
                                 {{ $type === 'expense' ? 'Receipt' : 'Invoice / Proof' }}
                                 <span class="text-gray-400">(Optional)</span>
@@ -706,6 +741,11 @@ new #[Title('Manage Your Transactions')] class extends Component {
                         </flux:field>
                     </div>
                 </div>
+
+
+@error('receipt')
+    <p class="text-red-500 text-sm mt-2">{{ $message }}</p>
+@enderror
 
                 <div class="flex gap-3 justify-end">
                     <flux:button wire:click="resetForm" variant="ghost">
