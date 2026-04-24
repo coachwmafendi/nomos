@@ -55,6 +55,12 @@
                         wire:navigate>
                         Reports    
                     </flux:navlist.item>
+                     <flux:navlist.item 
+                        icon="sparkles" variant="solid" class="text-amber-500 dark:text-amber-300"
+                        href="{{ route('insights') }}" 
+                        wire:navigate>
+                        Insights    
+                    </flux:navlist.item>
 
                     <flux:navlist.item 
                         icon="chart-bar" variant="solid" class="text-amber-500 dark:text-amber-300"

@@ -16,6 +16,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/quote', 'financial-quote')->name('quote');
     Route::livewire('/recurring', 'recurring-transactions')->name('recurring');
 
+    Route::livewire('/insights', 'pages.insights')->name('insights');
+
     
     //route for export
     Route::get('/transactions/export', [ExportController::class, 'csv'])->name('transactions.export');

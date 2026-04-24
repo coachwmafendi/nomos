@@ -208,7 +208,7 @@ new class extends Component {
                     </div>
                 </div>
                 <flux:button
-                    href="{{ route('recurring.pending') }}"
+                    href="{{ route('recurring') }}"
                     size="sm"
                     variant="ghost"
                     class="text-amber-400 border-amber-500/30"

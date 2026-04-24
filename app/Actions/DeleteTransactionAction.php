@@ -8,6 +8,10 @@ class DeleteTransactionAction
 {
     public function handle(int $id): void
     {
-        Transaction::findOrFail($id)->delete();
+        $transaction = Transaction::query()
+            ->where('user_id', auth()->id())
+            ->findOrFail($id);
+
+        $transaction->delete();
     }
 }
