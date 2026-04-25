@@ -8,7 +8,6 @@ use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use App\Models\Transaction;
 use App\Models\Category;
-use App\Models\TransactionAttachment;
 use Flux\Flux;
 use App\Actions\CreateTransactionAction;
 use App\Actions\UpdateTransactionAction;
@@ -17,17 +16,12 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 new #[Title('Manage Your Transactions')] class extends Component {
-
     use WithPagination;
     use WithFileUploads;
 
     public bool $showModal = false;
     public string $mode = 'create';
     public ?int $editId = null;
-
-    public $isDragging = false;
-    public $receipt = null;
-
 
     public bool $showDeleteModal = false;
     public ?int $deleteId = null;
@@ -61,29 +55,36 @@ new #[Title('Manage Your Transactions')] class extends Component {
     public string $dateFrom = '';
     public string $dateTo = '';
 
+    public bool $removeExistingAttachment = false;
+
     public function mount(): void
     {
         $this->date = now()->format('Y-m-d');
-        // $this->date = now()->format('Y-m-d\TH:i');
-
     }
 
-     // Handle file drop
-    public function handleFileDrop($files)
+    #[Computed]
+    public function currentAttachment()
     {
-        $this->isDragging = false;
-
-        if (!empty($files)) {
-            $this->receipt = $files[0]; // Ambil file pertama
-            $this->validateOnly('receipt');
+        if (! $this->editId) {
+            return null;
         }
+
+        $transaction = Transaction::query()
+            ->with('attachments')
+            ->where('user_id', auth()->id())
+            ->find($this->editId);
+
+        return $transaction?->attachments->first();
     }
 
-    // Handle file input change
-    public function handleFileUpload($file)
+    public function removeSelectedAttachment(): void
     {
-        $this->receipt = $file;
-        $this->validateOnly('receipt');
+        $this->attachment = null;
+    }
+
+    public function removeCurrentAttachment(): void
+    {
+        $this->removeExistingAttachment = true;
     }
 
     public function sort(string $column): void
@@ -216,6 +217,7 @@ new #[Title('Manage Your Transactions')] class extends Component {
     public function save(CreateTransactionAction $action): void
     {
         $this->validate();
+
         $transaction = $action->handle($this->formData());
 
         if ($this->attachment) {
@@ -270,6 +272,8 @@ new #[Title('Manage Your Transactions')] class extends Component {
         $this->date = $transaction->date->format('Y-m-d');
 
         $this->attachment = null;
+        $this->removeExistingAttachment = false;
+
         $this->resetValidation();
         $this->mode = 'edit';
         $this->showModal = true;
@@ -278,7 +282,18 @@ new #[Title('Manage Your Transactions')] class extends Component {
     public function update(UpdateTransactionAction $action): void
     {
         $this->validate();
+
         $transaction = $action->handle($this->editId, $this->formData());
+        $transaction->load('attachments');
+
+        if ($this->removeExistingAttachment) {
+            foreach ($transaction->attachments as $oldAttachment) {
+                Storage::disk($oldAttachment->disk)->delete($oldAttachment->path);
+                $oldAttachment->delete();
+            }
+
+            $transaction->load('attachments');
+        }
 
         if ($this->attachment) {
             foreach ($transaction->attachments as $oldAttachment) {
@@ -346,9 +361,16 @@ new #[Title('Manage Your Transactions')] class extends Component {
 
     public function resetForm(): void
     {
-        $this->reset(['description', 'amount', 'category_id', 'editId', 'attachment']);
-        $this->date = now()->format('Y-m-d');
+        $this->reset([
+            'description',
+            'amount',
+            'category_id',
+            'editId',
+            'attachment',
+            'removeExistingAttachment',
+        ]);
 
+        $this->date = now()->format('Y-m-d');
         $this->type = 'expense';
         $this->mode = 'create';
         $this->showModal = false;
@@ -378,26 +400,26 @@ new #[Title('Manage Your Transactions')] class extends Component {
 ?>
 
 <div class="p-6 space-y-6">
-
     {{-- HEADER --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
             <h2 class="text-lg font-semibold">Transactions</h2>
+
             <div class="flex items-center gap-3">
-                {{-- Date Filter --}}
                 <flux:input
                     type="date"
                     wire:model.live="dateFrom"
                     label="From"
                 />
+
                 <span class="text-gray-400 mt-5">→</span>
+
                 <flux:input
                     type="date"
                     wire:model.live="dateTo"
                     label="To"
                 />
 
-                {{-- Export --}}
                 <flux:button
                     wire:click="exportCsv"
                     icon="arrow-down-tray"
@@ -406,7 +428,6 @@ new #[Title('Manage Your Transactions')] class extends Component {
                     Export CSV
                 </flux:button>
 
-                {{-- Add --}}
                 <flux:button
                     wire:click="openCreate()"
                     icon="plus"
@@ -453,7 +474,8 @@ new #[Title('Manage Your Transactions')] class extends Component {
             wire:model.live.debounce.300ms="search"
             placeholder="Search transactions..."
             icon="magnifying-glass"
-            clearable />
+            clearable
+        />
 
         <flux:select wire:model.live="filterType" placeholder="All Types">
             <flux:select.option value="">All Types</flux:select.option>
@@ -483,16 +505,14 @@ new #[Title('Manage Your Transactions')] class extends Component {
     </div>
 
     {{-- TABLE --}}
-    
-    {{-- Calling sub component --}}
-    <x-transactions.transactions-table 
-    :transactions="$this->transactions"
-    :sort-by="$sortBy"
-    :sort-dir="$sortDir"
-    :is-filtering="$this->isFiltering"
+    <x-transactions.transactions-table
+        :transactions="$this->transactions"
+        :sort-by="$sortBy"
+        :sort-dir="$sortDir"
+        :is-filtering="$this->isFiltering"
     />
 
-    {{-- MODAL (Create & Edit) --}}
+    {{-- MODAL --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <flux:modal wire:model.self="showModal" class="w-full max-w-max">
             <div class="space-y-6">
@@ -505,7 +525,8 @@ new #[Title('Manage Your Transactions')] class extends Component {
                         <flux:input
                             wire:model="description"
                             label="Description"
-                            placeholder="e.g. Zus Coffee" />
+                            placeholder="e.g. Zus Coffee"
+                        />
                         @error('description')
                             <flux:error>{{ $message }}</flux:error>
                         @enderror
@@ -517,7 +538,8 @@ new #[Title('Manage Your Transactions')] class extends Component {
                             wire:model="amount"
                             label="Amount (RM)"
                             placeholder="0.00"
-                            step="0.01" />
+                            step="0.01"
+                        />
                         @error('amount')
                             <flux:error>{{ $message }}</flux:error>
                         @enderror
@@ -564,55 +586,130 @@ new #[Title('Manage Your Transactions')] class extends Component {
                             type="date"
                             wire:model="date"
                             value="{{ $date }}"
-                            label="Date" />
+                            label="Date"
+                        />
                         @error('date')
                             <flux:error>{{ $message }}</flux:error>
                         @enderror
                     </div>
 
-                    {{-- Cointainer File Upload --}}
-                    <div class="col-span-2" 
-                    wire:drop="handleFileDrop" 
-                        wire:dragover="$set('isDragging', true)"
-                        wire:dragleave="$set('isDragging', false)"
-                        >
-                                            <flux:field>
+                    {{-- ATTACHMENT --}}
+                    <div class="col-span-2 space-y-3">
+                        <flux:field>
                             <flux:label>
                                 {{ $type === 'expense' ? 'Receipt' : 'Invoice / Proof' }}
-                                <span class="text-gray-400">(Optional)</span>
+                                <span class="text-zinc-400">(Optional)</span>
                             </flux:label>
 
-                            <flux:input
-                                type="file"
-                                wire:model="attachment"
-                                accept=".jpg,.jpeg,.png,.pdf"
-                            />
+                            <div
+                                x-data="{ dragging: false }"
+                                x-on:dragenter.prevent="dragging = true"
+                                x-on:dragover.prevent="dragging = true"
+                                x-on:dragleave.prevent="dragging = false"
+                                x-on:drop.prevent="
+                                    dragging = false;
+                                    const files = $event.dataTransfer.files;
+                                    if (files.length) {
+                                        $refs.attachment.files = files;
+                                        $refs.attachment.dispatchEvent(new Event('change', { bubbles: true }));
+                                    }
+                                "
+                                class="space-y-3"
+                            >
+                                <div
+                                    x-on:click="$refs.attachment.click()"
+                                    x-on:keydown.enter.prevent="$refs.attachment.click()"
+                                    x-on:keydown.space.prevent="$refs.attachment.click()"
+                                    tabindex="0"
+                                    role="button"
+                                    class="flex min-h-36 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center transition hover:border-zinc-400 hover:bg-zinc-100/70 dark:border-zinc-700 dark:bg-zinc-900/40 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
+                                    :class="dragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : ''"
+                                >
+                                 <div class="space-y-2">
+                                        <div class="text-sm font-medium text-gray-500 dark:text-zinc-400">
+                                            Drop file here or click to browse
+                                        </div>
 
-                            <flux:text class="mt-2 text-xs text-gray-400">
-                                JPG, PNG atau PDF. Maksimum 5MB.
-                            </flux:text>
+                                        <div class="text-sm font-medium text-gray-400 dark:text-zinc-400">
+                                            JPG, PNG atau PDF sehingga 5MB
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <div wire:loading wire:target="attachment" class="mt-2 text-sm text-gray-400">
-                                Uploading file...
+                                <input
+                                    x-ref="attachment"
+                                    type="file"
+                                    wire:model="attachment"
+                                    accept=".jpg,.jpeg,.png,.pdf"
+                                    class="hidden"
+                                />
                             </div>
-
-                            @if ($attachment)
-                                <p class="mt-2 text-sm text-gray-300">
-                                    Selected: {{ $attachment->getClientOriginalName() }}
-                                </p>
-                            @endif
 
                             @error('attachment')
                                 <flux:error>{{ $message }}</flux:error>
                             @enderror
                         </flux:field>
+
+                        <div wire:loading wire:target="attachment" class="text-sm text-zinc-500">
+                            Uploading file...
+                        </div>
+
+                        @if ($attachment)
+                            <flux:callout variant="secondary" icon="paper-clip">
+                                <flux:callout.heading>
+                                    Selected: {{ $attachment->getClientOriginalName() }}
+                                </flux:callout.heading>
+
+                                <x-slot name="actions">
+                                    <flux:button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        wire:click="removeSelectedAttachment"
+                                    >
+                                        Remove file
+                                    </flux:button>
+                                </x-slot>
+                            </flux:callout>
+                        @endif
+
+                        @if ($mode === 'edit' && $this->currentAttachment && !$removeExistingAttachment && !$attachment)
+                            <flux:callout variant="warning" icon="paper-clip">
+                                <flux:callout.heading>
+                                    Current attachment: {{ $this->currentAttachment->original_name }}
+                                </flux:callout.heading>
+
+                                <x-slot name="actions">
+                                    <a
+                                        href="{{ $this->currentAttachment->url }}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="text-sm text-blue-600 underline"
+                                    >
+                                        View
+                                    </a>
+
+                                    <flux:button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        wire:click="removeCurrentAttachment"
+                                    >
+                                        Remove current file
+                                    </flux:button>
+                                </x-slot>
+                            </flux:callout>
+                        @endif
+
+                        @if ($mode === 'edit' && $removeExistingAttachment && !$attachment)
+                            <flux:callout variant="warning" icon="exclamation-triangle">
+                                <flux:callout.heading>
+                                    Current attachment akan dibuang apabila anda tekan Update.
+                                </flux:callout.heading>
+                            </flux:callout>
+                        @endif
                     </div>
                 </div>
-
-
-@error('receipt')
-    <p class="text-red-500 text-sm mt-2">{{ $message }}</p>
-@enderror
 
                 <div class="flex gap-3 justify-end">
                     <flux:button wire:click="resetForm" variant="ghost">
@@ -624,18 +721,20 @@ new #[Title('Manage Your Transactions')] class extends Component {
                             wire:click="save"
                             variant="primary"
                             wire:loading.attr="disabled"
-                            wire:target="save">
-                            <span wire:loading.remove wire:target="save">Add Transaction</span>
-                            <span wire:loading wire:target="save">Saving...</span>
+                            wire:target="save,attachment"
+                        >
+                            <span wire:loading.remove wire:target="save,attachment">Add Transaction</span>
+                            <span wire:loading wire:target="save,attachment">Saving...</span>
                         </flux:button>
                     @else
                         <flux:button
                             wire:click="update"
                             variant="primary"
                             wire:loading.attr="disabled"
-                            wire:target="update">
-                            <span wire:loading.remove wire:target="update">Update</span>
-                            <span wire:loading wire:target="update">Updating...</span>
+                            wire:target="update,attachment"
+                        >
+                            <span wire:loading.remove wire:target="update,attachment">Update</span>
+                            <span wire:loading wire:target="update,attachment">Updating...</span>
                         </flux:button>
                     @endif
                 </div>
@@ -667,7 +766,8 @@ new #[Title('Manage Your Transactions')] class extends Component {
                 <flux:button
                     wire:click="cancelDelete"
                     variant="ghost"
-                    class="flex-1">
+                    class="flex-1"
+                >
                     Cancel
                 </flux:button>
 
@@ -676,7 +776,8 @@ new #[Title('Manage Your Transactions')] class extends Component {
                     variant="danger"
                     wire:loading.attr="disabled"
                     wire:target="delete"
-                    class="flex-1">
+                    class="flex-1"
+                >
                     <span wire:loading.remove wire:target="delete">Delete</span>
                     <span wire:loading wire:target="delete">Deleting...</span>
                 </flux:button>
