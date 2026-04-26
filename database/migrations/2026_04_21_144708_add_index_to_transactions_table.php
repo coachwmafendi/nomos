@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->index(['date', 'type']);      // untuk chart queries
+            // ['date', 'type'] index already exists from create_transactions_table migration
             $table->index(['type', 'amount']);    // untuk summary queries
         });
     }
@@ -17,7 +17,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->dropIndex(['date', 'type']);
             $table->dropIndex(['type', 'amount']);
         });
     }

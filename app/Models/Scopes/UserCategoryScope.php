@@ -11,7 +11,7 @@ class UserCategoryScope implements Scope
     public function apply(Builder $builder, Model $model): void
     {
         if (auth()->check()) {
-            $builder->where('categories.user_id', auth()->id());
+            $builder->where($model->getTable().'.user_id', auth()->id());
         }
     }
 }
