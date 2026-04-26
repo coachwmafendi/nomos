@@ -55,29 +55,25 @@ new class extends Component {
     #[Computed]
     public function weeklyData()
     {
-        // Fixed: selalu 7 hari lepas — tidak ikut dateFrom/dateTo
-        $results = Transaction::where('type', 'expense')
-            ->where('date', '>=', Carbon::now()->subDays(6)->startOfDay())
-            ->where('date', '<=', Carbon::now()->endOfDay())
+        $startDate = now()->subDays(6)->startOfDay();
+        $endDate = now()->endOfDay();
+
+        return Transaction::query()
+            ->where('type', 'expense')
+            ->whereBetween('date', [$startDate, $endDate])
             ->selectRaw('DATE(date) as day, SUM(amount) as total')
             ->groupBy('day')
             ->orderBy('day')
             ->get()
-            ->keyBy('day');
+            ->map(function ($item) {
+                $date = \Carbon\Carbon::createFromFormat('Y-m-d', $item->day);
 
-        $days = [];
-        $currentDate = Carbon::now()->subDays(6);
-
-        while ($currentDate->lte(Carbon::now())) {
-            $key    = $currentDate->toDateString();
-            $days[] = [
-                'day'   => $currentDate->format('d/m'),
-                'total' => (float) ($results[$key]->total ?? 0),
-            ];
-            $currentDate->addDay();
-        }
-
-        return collect($days);
+                return [
+                    'day' => $date->format('Y-m-d'),
+                    'total' => (float) $item->total,
+                    'label' => [$date->format('d/m'), $date->format('D')],
+                ];
+        });
     }
 
 

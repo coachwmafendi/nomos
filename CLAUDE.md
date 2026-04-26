@@ -186,3 +186,65 @@ This project has domain-specific skills available. You MUST activate the relevan
 - Do NOT delete tests without approval.
 
 </laravel-boost-guidelines>
+
+# Nomos — Project-Specific Context
+
+## What This App Is
+
+Nomos is a personal finance tracker for a single authenticated user. Users track income and expenses, set budgets, manage recurring transactions, and view analytics/insights. Built as a Livewire SPA with Flux UI components.
+
+## Component Architecture
+
+All Livewire components use Single-File Component (SFC) format — PHP class + Blade template in one `.blade.php` file with ⚡ prefix:
+
+- `resources/views/components/pages/` — full-page Livewire components (dashboard, insights)
+- `resources/views/components/` — reusable Livewire components (transaction-chart, budget, etc.)
+- `resources/views/components/dashboard/` — Blade-only sub-components (no Livewire, receive props)
+- `resources/views/components/transactions/` — transaction-specific components
+
+### Blade-Only vs Livewire Components
+
+`resources/views/components/dashboard/blade-*.blade.php` files are plain Blade components (no PHP class), they receive data via props from the parent Livewire component. Do not add Livewire logic to these.
+
+## Database
+
+SQLite via Laravel Herd. Always use `strftime()` for date operations in raw SQL — NOT MySQL date functions.
+
+Example:
+```php
+->selectRaw("CAST(strftime('%m', date) AS INTEGER) as month")
+->whereRaw("strftime('%Y', date) = ?", [(string) $year])
+```
+
+## Known Architectural Notes
+
+- **Categories have no `user_id`** — categories are shared globally across all users. Do not add per-user category filtering unless explicitly asked.
+- **Transaction chart** listens to `chart-data-updated` event dispatched from the PHP component. When chart data changes, PHP dispatches the event with new data, Alpine re-renders the chart.
+- **ApexCharts** is loaded synchronously in `resources/views/layouts/app/sidebar.blade.php` before `@fluxScripts`. Do not move it to `<head>` or add `defer` — this breaks Alpine initialization order.
+- **Chart Alpine x-data** — use `$refs` directly in `x-init`/`x-on` handlers. Use `this.$refs` inside x-data methods. Never use `\$refs` (backslash) — Blade outputs it as literal `\$refs` which is invalid JS.
+
+## Actions Pattern
+
+CRUD operations go through Action classes in `app/Actions/`:
+- `CreateTransactionAction`
+- `UpdateTransactionAction`
+- `DeleteTransactionAction`
+
+When adding new CRUD features, follow this pattern — keep business logic in Actions, not in Livewire component methods.
+
+## Cache Keys
+
+Chart data is cached using keys `chart_data_{year}_{month}`. When transactions are created/updated/deleted, call `clearChartCache()` (available on the manage-transactions component) and dispatch `transaction-updated` event so the chart component refreshes.
+
+## File Uploads
+
+Transaction attachments use `WithFileUploads` trait. Files stored on `public` disk under `transactions/attachments/`. Attachment metadata stored in `transaction_attachments` table.
+
+## Routes
+
+All app routes are named. Use `route()` helper — never hardcode URLs. Key named routes:
+- `dashboard`, `transactions`, `categories`, `budget`, `recurring`, `bars-report`, `report`, `insights`, `quote`
+
+## Testing
+
+Tests in `tests/Feature/` using Pest. Run with `php artisan test --compact`. Always write/update tests when changing component logic.

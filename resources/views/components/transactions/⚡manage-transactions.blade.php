@@ -14,6 +14,7 @@ use App\Actions\UpdateTransactionAction;
 use App\Actions\DeleteTransactionAction;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 new #[Title('Manage Your Transactions')] class extends Component {
     use WithPagination;
@@ -62,6 +63,8 @@ new #[Title('Manage Your Transactions')] class extends Component {
         $this->date = now()->format('Y-m-d');
     }
 
+    // ─── Computed Properties ──────────────────────────────────────────
+
     #[Computed]
     public function currentAttachment()
     {
@@ -77,41 +80,18 @@ new #[Title('Manage Your Transactions')] class extends Component {
         return $transaction?->attachments->first();
     }
 
-    public function removeSelectedAttachment(): void
-    {
-        $this->attachment = null;
-    }
-
-    public function removeCurrentAttachment(): void
-    {
-        $this->removeExistingAttachment = true;
-    }
-
-    public function sort(string $column): void
-    {
-        if ($this->sortBy === $column) {
-            $this->sortDir = $this->sortDir === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortBy = $column;
-            $this->sortDir = 'desc';
-        }
-    }
-
     #[Computed]
     public function transactions()
     {
         $query = Transaction::query()
             ->with(['category', 'attachments'])
             ->where('user_id', auth()->id())
-            ->when($this->search, fn($q) =>
-                $q->where('description', 'like', "%{$this->search}%")
-            )
-            ->when($this->filterType, fn($q) =>
-                $q->where('type', $this->filterType)
-            )
-            ->when($this->filterCategory, fn($q) =>
-                $q->where('category_id', $this->filterCategory)
-            );
+            ->when($this->search, fn($q) => $q->where('description', 'like', "%{$this->search}%"))
+            ->when($this->filterType, fn($q) => $q->where('type', $this->filterType))
+            ->when($this->filterCategory, fn($q) => $q->where('category_id', $this->filterCategory))
+            // FIX: dateFrom & dateTo sekarang dipakai dalam query
+            ->when($this->dateFrom, fn($q) => $q->whereDate('date', '>=', $this->dateFrom))
+            ->when($this->dateTo, fn($q) => $q->whereDate('date', '<=', $this->dateTo));
 
         if ($this->sortBy === 'date') {
             $query->orderBy('date', $this->sortDir)
@@ -123,32 +103,6 @@ new #[Title('Manage Your Transactions')] class extends Component {
         }
 
         return $query->paginate(10);
-    }
-
-    public function exportCsv(): void
-    {
-        $this->redirect(route('transactions.export', [
-            'from' => $this->dateFrom,
-            'to'   => $this->dateTo,
-        ]));
-    }
-
-    #[Computed(persist: true)]
-    public function totalIncome()
-    {
-        return Transaction::query()
-            ->where('user_id', auth()->id())
-            ->where('type', 'income')
-            ->sum('amount');
-    }
-
-    #[Computed(persist: true)]
-    public function totalExpense()
-    {
-        return Transaction::query()
-            ->where('user_id', auth()->id())
-            ->where('type', 'expense')
-            ->sum('amount');
     }
 
     #[Computed(cache: true, seconds: 300)]
@@ -169,11 +123,25 @@ new #[Title('Manage Your Transactions')] class extends Component {
     }
 
     #[Computed]
+    public function income()
+    {
+        return $this->summary['income'];
+    }
+
+    #[Computed]
+    public function expenses()
+    {
+        return $this->summary['expense'];
+    }
+
+    #[Computed]
     public function isFiltering(): bool
     {
         return filled($this->search)
             || filled($this->filterType)
-            || filled($this->filterCategory);
+            || filled($this->filterCategory)
+            || filled($this->dateFrom)
+            || filled($this->dateTo);
     }
 
     #[Computed]
@@ -185,6 +153,8 @@ new #[Title('Manage Your Transactions')] class extends Component {
             ->map(fn($group) => $group->pluck('name', 'id')->toArray())
             ->toArray();
     }
+
+    // ─── Updated Hooks ────────────────────────────────────────────────
 
     public function updatedType(): void
     {
@@ -207,42 +177,39 @@ new #[Title('Manage Your Transactions')] class extends Component {
         $this->resetPage();
     }
 
+    // FIX: dateFrom & dateTo reset pagination bila berubah
+    public function updatedDateFrom(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedDateTo(): void
+    {
+        $this->resetPage();
+    }
+
+    // ─── Sorting ──────────────────────────────────────────────────────
+
+    // FIX: Method sort() untuk dipakai dari transactions-table component
+    public function sort(string $column): void
+    {
+        if ($this->sortBy === $column) {
+            $this->sortDir = $this->sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortBy = $column;
+            $this->sortDir = 'asc';
+        }
+
+        $this->resetPage();
+    }
+
+    // ─── Modal ────────────────────────────────────────────────────────
+
     public function openCreate(): void
     {
         $this->resetForm();
         $this->mode = 'create';
         $this->showModal = true;
-    }
-
-    public function save(CreateTransactionAction $action): void
-    {
-        $this->validate();
-
-        $transaction = $action->handle($this->formData());
-
-        if ($this->attachment) {
-            $path = $this->attachment->store('transactions/attachments', 'public');
-
-            $transaction->attachments()->create([
-                'original_name' => $this->attachment->getClientOriginalName(),
-                'stored_name' => basename($path),
-                'path' => $path,
-                'disk' => 'public',
-                'mime_type' => $this->attachment->getMimeType(),
-                'size' => $this->attachment->getSize(),
-                'uploaded_by' => auth()->id(),
-            ]);
-        }
-
-        unset($this->summary, $this->transactions);
-
-        $this->resetForm();
-        $this->clearChartCache();
-
-        Flux::toast(
-            text: 'Transaction added successfully!',
-            variant: 'success',
-        );
     }
 
     private function formData(): array
@@ -255,126 +222,6 @@ new #[Title('Manage Your Transactions')] class extends Component {
             'category_id' => $this->category_id,
             'date'        => $this->date,
         ];
-    }
-
-    public function openEdit(int $id): void
-    {
-        $transaction = Transaction::query()
-            ->with('attachments')
-            ->where('user_id', auth()->id())
-            ->findOrFail($id);
-
-        $this->editId = $transaction->id;
-        $this->description = $transaction->description;
-        $this->amount = (string) $transaction->amount;
-        $this->type = $transaction->type;
-        $this->category_id = $transaction->category_id;
-        $this->date = $transaction->date->format('Y-m-d');
-
-        $this->attachment = null;
-        $this->removeExistingAttachment = false;
-
-        $this->resetValidation();
-        $this->mode = 'edit';
-        $this->showModal = true;
-    }
-
-    public function update(UpdateTransactionAction $action): void
-    {
-        $this->validate();
-
-        $transaction = $action->handle($this->editId, $this->formData());
-        $transaction->load('attachments');
-
-        if ($this->removeExistingAttachment) {
-            foreach ($transaction->attachments as $oldAttachment) {
-                Storage::disk($oldAttachment->disk)->delete($oldAttachment->path);
-                $oldAttachment->delete();
-            }
-
-            $transaction->load('attachments');
-        }
-
-        if ($this->attachment) {
-            foreach ($transaction->attachments as $oldAttachment) {
-                Storage::disk($oldAttachment->disk)->delete($oldAttachment->path);
-                $oldAttachment->delete();
-            }
-
-            $path = $this->attachment->store('transactions/attachments', 'public');
-
-            $transaction->attachments()->create([
-                'original_name' => $this->attachment->getClientOriginalName(),
-                'stored_name' => basename($path),
-                'path' => $path,
-                'disk' => 'public',
-                'mime_type' => $this->attachment->getMimeType(),
-                'size' => $this->attachment->getSize(),
-                'uploaded_by' => auth()->id(),
-            ]);
-        }
-
-        unset($this->summary, $this->transactions);
-
-        $this->resetForm();
-        $this->clearChartCache();
-
-        Flux::toast(
-            text: 'Transaction updated successfully!',
-            variant: 'success',
-        );
-    }
-
-    public function confirmDelete(int $id, string $description): void
-    {
-        $this->deleteId = $id;
-        $this->deleteDescription = $description;
-        $this->showDeleteModal = true;
-    }
-
-    public function delete(DeleteTransactionAction $action): void
-    {
-        if (! $this->deleteId) return;
-
-        $action->handle($this->deleteId);
-
-        unset($this->summary, $this->transactions);
-
-        $this->deleteId = null;
-        $this->deleteDescription = '';
-        $this->showDeleteModal = false;
-
-        $this->clearChartCache();
-
-        Flux::toast(
-            text: 'Transaction deleted!',
-            variant: 'danger',
-        );
-    }
-
-    public function cancelDelete(): void
-    {
-        $this->deleteId = null;
-        $this->deleteDescription = '';
-        $this->showDeleteModal = false;
-    }
-
-    public function resetForm(): void
-    {
-        $this->reset([
-            'description',
-            'amount',
-            'category_id',
-            'editId',
-            'attachment',
-            'removeExistingAttachment',
-        ]);
-
-        $this->date = now()->format('Y-m-d');
-        $this->type = 'expense';
-        $this->mode = 'create';
-        $this->showModal = false;
-        $this->resetValidation();
     }
 
     protected function clearChartCache(): void
@@ -396,52 +243,233 @@ new #[Title('Manage Your Transactions')] class extends Component {
             }
         }
     }
+
+    // ─── CRUD ─────────────────────────────────────────────────────────
+
+    public function save(CreateTransactionAction $action): void
+    {
+        $this->validate();
+
+        $transaction = $action->handle($this->formData());
+
+        if ($this->attachment) {
+            $path = $this->attachment->store('transactions/attachments', 'public');
+
+            $transaction->attachments()->create([
+                'original_name' => $this->attachment->getClientOriginalName(),
+                'stored_name'   => basename($path),
+                'path'          => $path,
+                'disk'          => 'public',
+                'mime_type'     => $this->attachment->getMimeType(),
+                'size'          => $this->attachment->getSize(),
+                'uploaded_by'   => auth()->id(),
+            ]);
+        }
+
+        unset($this->summary, $this->transactions, $this->income, $this->expenses);
+
+        $this->resetForm();
+        $this->clearChartCache();
+        $this->dispatch('transaction-updated');
+
+        Flux::toast(text: 'Transaction added successfully!', variant: 'success');
+    }
+
+    public function openEdit(int $id): void
+    {
+        $transaction = Transaction::query()
+            ->with('attachments')
+            ->where('user_id', auth()->id())
+            ->findOrFail($id);
+
+        $this->editId          = $transaction->id;
+        $this->description     = $transaction->description;
+        $this->amount          = (string) $transaction->amount;
+        $this->type            = $transaction->type;
+        $this->category_id     = $transaction->category_id;
+        $this->date            = $transaction->date->format('Y-m-d');
+
+        $this->attachment                = null;
+        $this->removeExistingAttachment  = false;
+
+        $this->resetValidation();
+        $this->mode      = 'edit';
+        $this->showModal = true;
+    }
+
+    public function update(UpdateTransactionAction $action): void
+    {
+        $this->validate();
+
+        $transaction = $action->handle($this->editId, $this->formData());
+        $transaction->load('attachments');
+
+        if ($this->removeExistingAttachment) {
+            foreach ($transaction->attachments as $oldAttachment) {
+                Storage::disk($oldAttachment->disk)->delete($oldAttachment->path);
+                $oldAttachment->delete();
+            }
+            $transaction->load('attachments');
+        }
+
+        if ($this->attachment) {
+            foreach ($transaction->attachments as $oldAttachment) {
+                Storage::disk($oldAttachment->disk)->delete($oldAttachment->path);
+                $oldAttachment->delete();
+            }
+
+            $path = $this->attachment->store('transactions/attachments', 'public');
+
+            $transaction->attachments()->create([
+                'original_name' => $this->attachment->getClientOriginalName(),
+                'stored_name'   => basename($path),
+                'path'          => $path,
+                'disk'          => 'public',
+                'mime_type'     => $this->attachment->getMimeType(),
+                'size'          => $this->attachment->getSize(),
+                'uploaded_by'   => auth()->id(),
+            ]);
+        }
+
+        unset($this->summary, $this->transactions, $this->income, $this->expenses);
+
+        $this->resetForm();
+        $this->clearChartCache();
+        $this->dispatch('transaction-updated');
+
+        Flux::toast(text: 'Transaction updated successfully!', variant: 'success');
+    }
+
+    public function confirmDelete(int $id, string $description): void
+    {
+        $this->deleteId          = $id;
+        $this->deleteDescription = $description;
+        $this->showDeleteModal   = true;
+    }
+
+    public function delete(DeleteTransactionAction $action): void
+    {
+        if (! $this->deleteId) {
+            return;
+        }
+
+        $action->handle($this->deleteId);
+
+        unset($this->summary, $this->transactions, $this->income, $this->expenses);
+
+        $this->deleteId          = null;
+        $this->deleteDescription = '';
+        $this->showDeleteModal   = false;
+
+        $this->clearChartCache();
+        $this->dispatch('transaction-updated');
+
+        Flux::toast(text: 'Transaction deleted!', variant: 'danger');
+    }
+
+    public function cancelDelete(): void
+    {
+        $this->deleteId          = null;
+        $this->deleteDescription = '';
+        $this->showDeleteModal   = false;
+    }
+
+    // ─── Attachment Helpers ───────────────────────────────────────────
+
+    // FIX: Method ini wujud tapi tiada dalam code asal
+    public function removeSelectedAttachment(): void
+    {
+        $this->attachment = null;
+    }
+
+    // FIX: Method ini wujud tapi tiada dalam code asal
+    public function removeCurrentAttachment(): void
+    {
+        $this->removeExistingAttachment = true;
+    }
+
+    // ─── Export ───────────────────────────────────────────────────────
+
+    // FIX: Method exportCsv() yang dipanggil dalam Blade
+    public function exportCsv(): StreamedResponse
+    {
+        $transactions = Transaction::query()
+            ->with('category')
+            ->where('user_id', auth()->id())
+            ->when($this->search, fn($q) => $q->where('description', 'like', "%{$this->search}%"))
+            ->when($this->filterType, fn($q) => $q->where('type', $this->filterType))
+            ->when($this->filterCategory, fn($q) => $q->where('category_id', $this->filterCategory))
+            ->when($this->dateFrom, fn($q) => $q->whereDate('date', '>=', $this->dateFrom))
+            ->when($this->dateTo, fn($q) => $q->whereDate('date', '<=', $this->dateTo))
+            ->orderBy('date', 'desc')
+            ->get();
+
+        $filename = 'transactions-' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($transactions) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, ['Date', 'Description', 'Type', 'Category', 'Amount (RM)']);
+
+            foreach ($transactions as $tx) {
+                fputcsv($handle, [
+                    $tx->date->format('Y-m-d'),
+                    $tx->description,
+                    $tx->type,
+                    $tx->category?->name ?? '—',
+                    number_format($tx->amount, 2, '.', ''),
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    // ─── Reset Form ───────────────────────────────────────────────────
+
+    public function resetForm(): void
+    {
+        $this->reset([
+            'description',
+            'amount',
+            'category_id',
+            'editId',
+            'attachment',
+            'removeExistingAttachment',
+        ]);
+
+        $this->date      = now()->format('Y-m-d');
+        $this->type      = 'expense';
+        $this->mode      = 'create';
+        $this->showModal = false;
+        $this->resetValidation();
+    }
 };
 ?>
 
 <div class="p-6 space-y-6">
-    {{-- HEADER --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
             <h2 class="text-lg font-semibold">Transactions</h2>
 
             <div class="flex items-center gap-3">
-                <flux:input
-                    type="date"
-                    wire:model.live="dateFrom"
-                    label="From"
-                />
-
+                <flux:input type="date" wire:model.live="dateFrom" label="From" />
                 <span class="text-gray-400 mt-5">→</span>
+                <flux:input type="date" wire:model.live="dateTo" label="To" />
 
-                <flux:input
-                    type="date"
-                    wire:model.live="dateTo"
-                    label="To"
-                />
-
-                <flux:button
-                    wire:click="exportCsv"
-                    icon="arrow-down-tray"
-                    variant="ghost"
-                >
+                <flux:button wire:click="exportCsv" icon="arrow-down-tray" variant="ghost">
                     Export CSV
                 </flux:button>
 
-                <flux:button
-                    wire:click="openCreate()"
-                    icon="plus"
-                    variant="primary"
-                >
+                <flux:button wire:click="openCreate()" icon="plus" variant="primary">
                     Add Transaction
                 </flux:button>
             </div>
         </div>
     </div>
 
-    {{-- SUMMARY CARDS --}}
     @island('summary-card', always:true)
-    <div wire:sort class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
             <flux:subheading>Total Income</flux:subheading>
             <p class="text-2xl font-bold text-green-500 mt-1">
@@ -465,10 +493,12 @@ new #[Title('Manage Your Transactions')] class extends Component {
     </div>
     @endisland
 
-    {{-- Chart component --}}
-    <livewire:transaction-chart />
+    <livewire:transaction-chart
+        :income="$this->income"
+        :expenses="$this->expenses"
+        :key="'transaction-chart-'.$this->income.'-'.$this->expenses"
+    />
 
-    {{-- FILTERS --}}
     <div class="grid gap-4" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
         <flux:input
             wire:model.live.debounce.300ms="search"
@@ -504,7 +534,6 @@ new #[Title('Manage Your Transactions')] class extends Component {
         </flux:select>
     </div>
 
-    {{-- TABLE --}}
     <x-transactions.transactions-table
         :transactions="$this->transactions"
         :sort-by="$sortBy"
@@ -512,7 +541,7 @@ new #[Title('Manage Your Transactions')] class extends Component {
         :is-filtering="$this->isFiltering"
     />
 
-    {{-- MODAL --}}
+    {{-- ─── Create / Edit Modal ─── --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <flux:modal wire:model.self="showModal" class="w-full max-w-max">
             <div class="space-y-6">
@@ -585,7 +614,6 @@ new #[Title('Manage Your Transactions')] class extends Component {
                         <flux:input
                             type="date"
                             wire:model="date"
-                            value="{{ $date }}"
                             label="Date"
                         />
                         @error('date')
@@ -593,7 +621,6 @@ new #[Title('Manage Your Transactions')] class extends Component {
                         @enderror
                     </div>
 
-                    {{-- ATTACHMENT --}}
                     <div class="col-span-2 space-y-3">
                         <flux:field>
                             <flux:label>
@@ -625,13 +652,12 @@ new #[Title('Manage Your Transactions')] class extends Component {
                                     class="flex min-h-36 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center transition hover:border-zinc-400 hover:bg-zinc-100/70 dark:border-zinc-700 dark:bg-zinc-900/40 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
                                     :class="dragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : ''"
                                 >
-                                 <div class="space-y-2">
+                                    <div class="space-y-1">
                                         <div class="text-sm font-medium text-gray-500 dark:text-zinc-400">
                                             Drop file here or click to browse
                                         </div>
-
                                         <div class="text-sm font-medium text-gray-400 dark:text-zinc-400">
-                                            JPG, PNG atau PDF sehingga 5MB
+                                            JPG, PNG, or PDF up to 5MB
                                         </div>
                                     </div>
                                 </div>
@@ -742,7 +768,7 @@ new #[Title('Manage Your Transactions')] class extends Component {
         </flux:modal>
     </div>
 
-    {{-- DELETE CONFIRM MODAL --}}
+    {{-- ─── Delete Confirmation Modal ─── --}}
     <flux:modal wire:model.self="showDeleteModal" class="w-full max-w-sm">
         <div class="space-y-6">
             <div class="flex flex-col items-center text-center gap-3">
@@ -763,11 +789,7 @@ new #[Title('Manage Your Transactions')] class extends Component {
             </div>
 
             <div class="flex gap-3 justify-center">
-                <flux:button
-                    wire:click="cancelDelete"
-                    variant="ghost"
-                    class="flex-1"
-                >
+                <flux:button wire:click="cancelDelete" variant="ghost" class="flex-1">
                     Cancel
                 </flux:button>
 

@@ -1,5 +1,9 @@
 @props(['weeklyData'])
 
+@php
+ $categories = collect($weeklyData)->pluck('label')->values();
+@endphp
+
 <div
     class="bg-white dark:bg-zinc-900 rounded-xl p-4 shadow-sm w-full"
     x-data="{
@@ -10,14 +14,16 @@
         },
         renderChart() {
             if (this.chart) this.chart.destroy();
+
             const isDark = document.documentElement.classList.contains('dark');
             const textColor = isDark ? '#9ca3af' : '#6b7280';
             const total = @js($weeklyData->count());
 
+
             this.chart = new ApexCharts(this.$refs.chart, {
                 chart: {
                     type: 'bar',
-                    height: 160,
+                    height: 200,
                     toolbar: { show: false },
                     animations: { enabled: true, speed: 400 },
                     background: 'transparent',
@@ -28,7 +34,7 @@
                     data: @js($weeklyData->pluck('total'))
                 }],
                 xaxis: {
-                    categories: @js($weeklyData->pluck('day')),
+                    categories: @js($categories),
                     labels: {
                         style: {
                             colors: textColor,
@@ -36,19 +42,14 @@
                             fontWeight: 500,
                         },
                         rotate: 0,
-                        hideOverlappingLabels: true,
+                        hideOverlappingLabels: false,
                         trim: false,
-                        formatter: function(val) {
-                            if (total <= 14) return val;
-                            const num = parseInt(val);
-                            return (num - 1) % 3 === 0 ? val : '';
-                        }
                     },
                     axisBorder: { show: false },
-                    axisTicks:  { show: false },
+                    axisTicks: { show: false },
                 },
                 yaxis: { show: false },
-                grid:  { show: false },
+                grid: { show: false },
                 dataLabels: { enabled: false },
                 plotOptions: {
                     bar: {
@@ -58,7 +59,9 @@
                 },
                 colors: ['#f87171'],
                 tooltip: {
-                    y: { formatter: (val) => 'RM ' + val.toFixed(2) },
+                    y: {
+                        formatter: (val) => 'RM ' + val.toFixed(2),
+                    },
                 },
                 theme: { mode: isDark ? 'dark' : 'light' },
             });

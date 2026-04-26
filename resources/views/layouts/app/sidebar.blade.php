@@ -158,6 +158,7 @@
             </flux:toast.group>
         @endpersist
 
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts@latest/dist/apexcharts.min.js"></script>
         @fluxScripts
     </body>
 </html>
