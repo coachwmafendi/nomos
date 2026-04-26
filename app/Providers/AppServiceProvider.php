@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use App\Observers\UserObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -26,8 +28,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // Blaze::debug();
         Blaze::optimize()->in(resource_path('views/components'));
-        
+
         $this->configureDefaults();
+
+        User::observe(UserObserver::class);
     }
 
     /**

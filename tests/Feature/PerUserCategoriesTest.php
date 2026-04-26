@@ -28,5 +28,15 @@ it('returns all categories when unauthenticated (for seeders)', function () {
     // No actingAs — unauthenticated context
     $categories = Category::all();
 
-    expect($categories)->toHaveCount(1);
+    expect($categories)->toHaveCount(22); // 21 defaults + 1 manual
+});
+
+it('seeds default categories when user is created', function () {
+    $user = User::factory()->create();
+
+    expect(Category::where('user_id', $user->id)->count())->toBeGreaterThan(0);
+
+    // Check if some known defaults exist (e.g. 'Food & Drinks' or 'Salary')
+    $names = Category::where('user_id', $user->id)->pluck('name')->toArray();
+    expect($names)->toContain('Food & Drinks');
 });

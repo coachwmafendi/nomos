@@ -4,8 +4,10 @@ namespace App\Models;
 
 use App\Models\Category;
 use App\Models\User;
+use App\Models\Scopes\UserTransactionScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 
 class Transaction extends Model
 {
@@ -17,6 +19,11 @@ class Transaction extends Model
         'category_id',
         'date',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new UserTransactionScope);
+    }
 
     protected $casts = [
         'date'   => 'datetime',

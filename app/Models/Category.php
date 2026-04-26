@@ -6,10 +6,14 @@ use App\Models\Scopes\UserCategoryScope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Model;
 
-#[ScopedBy(UserCategoryScope::class)]
 class Category extends Model
 {
     protected $fillable = ['user_id', 'name', 'type'];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new UserCategoryScope);
+    }
 
     public function user()
     {

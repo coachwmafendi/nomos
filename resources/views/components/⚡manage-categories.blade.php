@@ -31,9 +31,9 @@ new class extends Component {
     public function categories()
     {
         return Category::withCount('transactions')
-        ->orderBy('type')
-        ->orderBy('name')
-        ->paginate(15);
+            ->orderBy('type')
+            ->orderBy('name')
+            ->paginate(15);
     }
 
     public function openCreate(): void
@@ -61,7 +61,7 @@ new class extends Component {
 
         Category::updateOrCreate(
             ['id' => $this->editId],
-            ['name' => $this->name, 'type' => $this->type]
+            ['name' => $this->name, 'type' => $this->type, 'user_id' => auth()->id()]
         );
 
         unset($this->categories);
@@ -96,7 +96,7 @@ new class extends Component {
 };
 ?>
 
-<div class="space-y-2 w-1/4">
+<div class="space-y-6 w-full max-w-4xl">
 
     {{-- Header --}}
     <div class="flex items-center justify-between">
@@ -133,9 +133,7 @@ new class extends Component {
                     </flux:badge>
                 </flux:table.cell>
                 <flux:table.cell>
-                   <flux:table.cell>
-                      {{ $category->transactions_count }}
-                    </flux:table.cell>
+                    {{ $category->transactions_count }}
                 </flux:table.cell>
                 <flux:table.cell>
                     <div class="flex gap-2 justify-end">

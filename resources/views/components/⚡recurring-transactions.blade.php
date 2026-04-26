@@ -35,7 +35,7 @@ new class extends Component {
     #[Computed]
     public function categories()
     {
-        return Category::all();
+        return Category::orderBy('name')->get();
     }
 
     public function openForm(): void

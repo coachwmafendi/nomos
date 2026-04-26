@@ -21,7 +21,7 @@ Nomos is a personal finance management web application for individual users. It 
 
 ## Users
 
-Single-user per account. Multi-user architecture exists (user_id on most tables) but no team/sharing features are planned.
+Single-user per account. Multi-user architecture exists (user_id on most tables) to ensure data isolation.
 
 ---
 
@@ -90,7 +90,7 @@ Single-user per account. Multi-user architecture exists (user_id on most tables)
 - Filter by type (income / expense / both).
 - Create, edit, delete via modals.
 - Delete shows transaction count warning.
-- Categories are shared globally (not per-user).
+- **Per-user scoping:** Each user has their own set of categories. Default categories are seeded upon registration.
 
 ---
 
@@ -215,10 +215,9 @@ Single-user per account. Multi-user architecture exists (user_id on most tables)
 | Column | Type | Notes |
 |--------|------|-------|
 | id | bigint | PK |
+| user_id | bigint | FK → users |
 | name | string | |
 | type | enum | income / expense / both |
-
-> Categories have no user_id — shared across all users.
 
 ### budgets
 | Column | Type | Notes |
@@ -274,7 +273,6 @@ Unique constraint: (user_id, category_id, month, year).
 
 ## Known Limitations / Future Work
 
-- Categories are not per-user. All users share the same category list.
 - No multi-currency support.
 - No goal/savings tracking.
 - No bank/API import (manual entry only).
