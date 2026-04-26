@@ -96,7 +96,7 @@ new class extends Component {
 };
 ?>
 
-<div class="space-y-6 w-full max-w-4xl">
+<div class="space-y-6 w-full max-w-[34rem]">
 
     {{-- Header --}}
     <div class="flex items-center justify-between">
