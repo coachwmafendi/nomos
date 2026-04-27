@@ -272,9 +272,15 @@ new #[Title('Manage Your Transactions')] class extends Component {
 
         unset($this->summary, $this->transactions, $this->income, $this->expenses);
 
+        $wasIncome = $this->type === 'income';
+
         $this->resetForm();
         $this->clearChartCache();
         $this->dispatch('transaction-updated');
+
+        if ($wasIncome) {
+            $this->dispatch('income-saved');
+        }
 
         Flux::toast(text: 'Transaction added successfully!', variant: 'success');
     }
@@ -451,7 +457,11 @@ new #[Title('Manage Your Transactions')] class extends Component {
 };
 ?>
 
-<div class="p-6 space-y-6">
+<div
+    class="p-6 space-y-6"
+    x-data
+    x-on:income-saved.window="new Audio('/sounds/cha-ching.mp3').play()"
+>
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
             <h2 class="text-lg font-semibold">Transactions</h2>
