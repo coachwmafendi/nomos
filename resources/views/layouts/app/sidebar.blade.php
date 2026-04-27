@@ -11,66 +11,72 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('')" class="grid">
-                    {{-- <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </flux:sidebar.item> --}}
-                     
-                    <flux:navlist.item 
-                        icon="home" 
+                <flux:sidebar.group heading="Main">
+                    <flux:navlist.item
+                        icon="home"
                         href="{{ route('dashboard') }}"
+                        :current="request()->routeIs('dashboard')"
                         wire:navigate>
                         Dashboard
                     </flux:navlist.item>
 
-                    <flux:navlist.item 
-                        icon="banknotes" 
-                        href="{{ route('transactions') }}" 
+                    <flux:navlist.item
+                        icon="banknotes"
+                        href="{{ route('transactions') }}"
+                        :current="request()->routeIs('transactions')"
                         wire:navigate>
                         Transactions
                     </flux:navlist.item>
-                    
-                    <flux:navlist.item href="{{ route('budget') }}" icon="chart-bar" 
-                    :current="request()->routeIs('budget')">
+
+                    <flux:navlist.item
+                        icon="credit-card"
+                        href="{{ route('budget') }}"
+                        :current="request()->routeIs('budget')"
+                        wire:navigate>
                         Budget
                     </flux:navlist.item>
-                    
-                    <flux:navlist.item 
-                        icon="arrow-path" 
-                        href="{{ route('recurring') }}" 
+
+                    <flux:navlist.item
+                        icon="arrow-path"
+                        href="{{ route('recurring') }}"
+                        :current="request()->routeIs('recurring')"
                         wire:navigate>
                         Recurring
                     </flux:navlist.item>
+                </flux:sidebar.group>
 
-                    <flux:navlist.item 
-                        icon="bolt" variant="solid" class="text-amber-500 dark:text-amber-300"
-                        href="{{ route('bars-report') }}" 
+                <flux:sidebar.group heading="Analytics">
+                    <flux:navlist.item
+                        icon="chart-bar"
+                        href="{{ route('bars-report') }}"
+                        :current="request()->routeIs('bars-report')"
                         wire:navigate>
                         Bar Reports
                     </flux:navlist.item>
 
-                    <flux:navlist.item 
-                        icon="chart-bar" variant="solid" class="text-amber-500 dark:text-amber-300"
-                        href="{{ route('report') }}" 
+                    <flux:navlist.item
+                        icon="presentation-chart-line"
+                        href="{{ route('report') }}"
+                        :current="request()->routeIs('report')"
                         wire:navigate>
-                        Reports    
-                    </flux:navlist.item>
-                     <flux:navlist.item 
-                        icon="sparkles" variant="solid" class="text-amber-500 dark:text-amber-300"
-                        href="{{ route('insights') }}" 
-                        wire:navigate>
-                        Insights    
+                        Reports
                     </flux:navlist.item>
 
-                    <flux:navlist.item 
-                        icon="chart-bar" variant="solid" class="text-amber-500 dark:text-amber-300"
-                        href="{{ route('quote') }}" 
+                    <flux:navlist.item
+                        icon="sparkles"
+                        href="{{ route('insights') }}"
+                        :current="request()->routeIs('insights')"
+                        wire:navigate>
+                        Insights
+                    </flux:navlist.item>
+
+                    <flux:navlist.item
+                        icon="chat-bubble-left-ellipsis"
+                        href="{{ route('quote') }}"
+                        :current="request()->routeIs('quote')"
                         wire:navigate>
                         Quote
-                        
                     </flux:navlist.item>
-
-
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
@@ -79,21 +85,25 @@
             
 
             <flux:sidebar.nav>
-               
-                <flux:navlist.item href="{{ route('categories') }}" icon="tag" :current="request()->routeIs('categories')">
-                    Categories
-                </flux:navlist.item>
-                 <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
+                <flux:sidebar.group :heading="__('Settings')">
+                    <flux:navlist.item href="{{ route('categories') }}" icon="tag" :current="request()->routeIs('categories')" wire:navigate>
+                        Categories
+                    </flux:navlist.item>
+                </flux:sidebar.group>
             </flux:sidebar.nav>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
+
+        {{-- Mobile FAB — fixed bottom-right, hidden on desktop --}}
+        <a
+            href="{{ route('transactions') }}?create=1"
+            wire:navigate
+            class="lg:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-indigo-500 text-white shadow-lg hover:bg-indigo-600 active:bg-indigo-700 transition-colors"
+            aria-label="Add Transaction"
+        >
+            <flux:icon name="plus" class="size-6" />
+        </a>
 
         <!-- Mobile User Menu -->
         <flux:header class="lg:hidden">

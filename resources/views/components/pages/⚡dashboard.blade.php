@@ -185,16 +185,6 @@ new class extends Component {
                 wire:model.live="dateTo"
                 label="To"
             />
-            <div class="mt-5">
-                <flux:button
-                    href="{{ route('transactions') }}?create=1"
-                    wire:navigate
-                    variant="primary"
-                    icon="plus"
-                >
-                    Add Transaction
-                </flux:button>
-            </div>
         </div>
     </div>
 
@@ -256,5 +246,17 @@ new class extends Component {
     <div class="mt-6">
         <x-dashboard.blade-recent-transactions :transactions="$this->recentTransactions" />
     </div>
+
+    {{-- FAB: Add Transaction --}}
+    <a
+        href="{{ route('transactions') }}?create=1"
+        wire:navigate
+        class="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-lg transition-colors"
+        title="Add Transaction"
+    >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+    </a>
 
 </div>

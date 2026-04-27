@@ -24,16 +24,17 @@
     --color-zinc-900: #171717;
     --color-zinc-950: #0a0a0a;
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
-    --color-accent-foreground: var(--color-white);
+    /* Brand accent — violet/indigo, used by top fintech apps (Monarch, Copilot, YNAB) */
+    --color-accent: #6366f1;
+    --color-accent-content: #6366f1;
+    --color-accent-foreground: #ffffff;
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: #818cf8;
+        --color-accent-content: #818cf8;
+        --color-accent-foreground: #0f0f13;
     }
 }
 
