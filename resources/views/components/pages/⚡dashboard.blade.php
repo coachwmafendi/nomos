@@ -185,6 +185,16 @@ new class extends Component {
                 wire:model.live="dateTo"
                 label="To"
             />
+            <div class="mt-5">
+                <flux:button
+                    href="{{ route('transactions') }}?create=1"
+                    wire:navigate
+                    variant="primary"
+                    icon="plus"
+                >
+                    Add Transaction
+                </flux:button>
+            </div>
         </div>
     </div>
 
