@@ -21,7 +21,7 @@ Nomos is a personal finance management web application for individual users. It 
 
 ## Users
 
-Single-user per account. Multi-user architecture exists (user_id on most tables) to ensure data isolation.
+Single-user per account. Multi-user architecture exists (user_id on all tables) to ensure data isolation.
 
 ---
 
@@ -39,6 +39,7 @@ Single-user per account. Multi-user architecture exists (user_id on most tables)
 - **Top categories** — top 5 expense categories with progress bars and percentage.
 - **Recent transactions** — last 5 transactions with category, amount, date.
 - **Recurring pending banner** — shown when recurring transactions are due today; links to Recurring page.
+- **Add Transaction FAB** — fixed circular button (bottom-right) navigates to `/transactions?create=1` to open the create modal directly.
 
 ---
 
@@ -63,6 +64,8 @@ Single-user per account. Multi-user architecture exists (user_id on most tables)
 - Drag-and-drop upload zone.
 - Inline validation with error messages.
 - Flux modal dialog.
+- Auto-opens create modal when `?create=1` query param is present (e.g. from dashboard FAB).
+- **Income sound** — plays `public/sounds/cha-ching.mp3` (cash register) via Alpine when an income transaction is saved successfully.
 
 #### Delete
 
@@ -90,7 +93,7 @@ Single-user per account. Multi-user architecture exists (user_id on most tables)
 - Filter by type (income / expense / both).
 - Create, edit, delete via modals.
 - Delete shows transaction count warning.
-- **Per-user scoping:** Each user has their own set of categories. Default categories are seeded upon registration.
+- **Per-user scoping:** Each user has their own set of categories. 21 default categories are seeded upon registration via `DefaultCategories` data class.
 
 ---
 
@@ -263,7 +266,7 @@ Unique constraint: (user_id, category_id, month, year).
 
 ## Non-Functional Requirements
 
-- **Responsiveness** — works on mobile (sidebar collapses).
+- **Responsiveness** — works on mobile (sidebar collapses to bottom nav / hamburger).
 - **Dark mode** — full support via Tailwind `dark:` classes and Flux theme.
 - **Performance** — expensive queries cached with `#[Computed(cache: true)]`. Chart data cached 5 minutes per year/month key.
 - **Security** — all routes behind `auth` + `verified` middleware. File uploads validated (type + size). Queries scoped to `auth()->id()`.
@@ -276,6 +279,5 @@ Unique constraint: (user_id, category_id, month, year).
 - No multi-currency support.
 - No goal/savings tracking.
 - No bank/API import (manual entry only).
-- No mobile app — web only.
 - CSV export but no import.
-- No notification/reminder system for recurring transactions (only banner on dashboard).
+- No push notification/reminder system for recurring transactions (only banner on dashboard).

@@ -1,52 +1,53 @@
 # Nomos
 
-Nomos is a personal finance management web application for individual users. It provides a single place to track income and expenses, set budgets, manage recurring bills, and understand spending behaviour through analytics and insights.
+Nomos is a personal finance management web application. Track income and expenses, set budgets, manage recurring bills, and understand spending behaviour through analytics and insights.
 
-## 🚀 Key Features
+## Tech Stack
 
-- **Dashboard**: High-level overview of financial health with summary cards, weekly spending bar charts, and top category breakdowns.
-- **Transaction Tracking**: Fast entry of income and expenses with support for file attachments (receipts, invoices).
-- **Personalized Categories**: Full per-user category management. New users are automatically seeded with a standard set of 21 default categories.
-- **Monthly Budgeting**: Set per-category budget limits with real-time progress indicators (Green/Yellow/Red).
-- **Recurring Transactions**: Automation of recurring bills and income with a "Confirm/Skip" workflow to generate actual transactions.
-- **Financial Insights**: Deep-dive analysis including daily spending trends, weekday vs weekend patterns, and data-driven recommendations.
-- **Reporting**: Visual spending reports and CSV exports for transaction history.
+- **Backend:** Laravel 13, PHP 8.4, SQLite
+- **Frontend:** Livewire 4 SFC, Flux UI v2, Tailwind CSS 4, Alpine.js
+- **Auth:** Laravel Fortify (2FA, email verification)
+- **Dev:** Laravel Herd, Pest v4
 
-## 🛠 Tech Stack
+## Features
 
-- **Backend**: Laravel 13, PHP 8.4, SQLite
-- **Frontend**: Livewire 4, Flux UI, Tailwind CSS 4, Alpine.js
-- **Auth**: Laravel Fortify (2FA, Email Verification)
+- **Dashboard** — summary cards, weekly spending chart, top categories, recent transactions, recurring pending banner, Add Transaction FAB
+- **Transactions** — paginated list with search/filter/sort, income/expense CRUD, file attachments, CSV export, income cha-ching sound
+- **Categories** — per-user categories, seeded with 21 defaults on registration
+- **Budget** — per-category monthly budgets with Green/Yellow/Red progress indicators
+- **Recurring Transactions** — Confirm/Skip workflow, daily/weekly/monthly/yearly frequencies
+- **Reports** — bar chart by month or category, transaction report with category breakdown
+- **Insights** — spending trends, weekday patterns, category movement, data-driven recommendations
+- **Settings** — profile, appearance (dark/light), security (password, 2FA TOTP)
 
-## 🏗 Architecture
+## Architecture
+
+### Component Structure
+
+All Livewire components use Single-File Component (SFC) format with ⚡ prefix:
+
+```
+resources/views/components/
+├── pages/          # Full-page SFC components (dashboard, insights)
+├── transactions/   # Transaction-specific SFC components
+├── dashboard/      # Blade-only sub-components (props only, no Livewire)
+└── *.blade.php     # Reusable SFC components (budget, recurring, etc.)
+```
+
+### Actions Pattern
+
+Business logic lives in `app/Actions/` — not in Livewire component methods:
+
+```
+app/Actions/
+├── CreateTransactionAction
+├── UpdateTransactionAction
+└── DeleteTransactionAction
+```
 
 ### Data Isolation
-Nomos ensures strict data privacy. All user-owned entities are scoped to the authenticated user using Eloquent Global Scopes.
 
-```mermaid
-graph TD
-    User((User)) -->|Auth| Session[Session]
-    Session -->|ID| Scope{Global Scope}
-    Scope -->|Filter| Transaction[Transactions]
-    Scope -->|Filter| Category[Categories]
-    Scope -->|Filter| Budget[Budgets]
-    Scope -->|Filter| Recurring[Recurring Transactions]
-```
-
-### Component Logic
-The app uses a Single-File Component (SFC) architecture for Livewire, combining PHP logic and Blade templates.
-
-```mermaid
-graph LR
-    User -->|Interaction| LWC[Livewire Component]
-    LWC -->|Calls| Action[Action Class]
-    Action -->|Query/Write| DB[(SQLite Database)]
-    DB -->|Return| Action
-    Action -->|Response| LWC
-    LWC -->|Reactive Update| UI[Flux UI / Tailwind]
-```
-
-### Core Entity Relationships
+All user-owned entities are scoped to the authenticated user. Categories use `UserCategoryScope` global scope.
 
 ```mermaid
 erDiagram
@@ -55,33 +56,34 @@ erDiagram
     USER ||--o{ BUDGET : sets
     USER ||--o{ RECURRING_TRANSACTION : schedules
     CATEGORY ||--o{ TRANSACTION : classifies
-    CATEGORY ||--o{ BUDGET : limits
-    CATEGORY ||--o{ RECURRING_TRANSACTION : classifies
     TRANSACTION ||--o{ TRANSACTION_ATTACHMENT : has
 ```
 
-## ⚙️ Installation
+## Installation
 
-1. **Clone & Setup**
-   ```bash
-   git clone <repo-url>
-   composer install
-   npm install
-   cp .env.example .env
-   ```
+```bash
+git clone <repo-url>
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+npm run build
+```
 
-2. **Database & Assets**
-   ```bash
-   php artisan migrate --seed
-   npm run dev
-   ```
+Served via Laravel Herd at `http://nomos.test`.
 
-3. **Access**
-   The site is served via Laravel Herd at `http://nomos.test`.
+## Development
 
-## 📝 Development Guidelines
+```bash
+composer run dev   # starts Herd + Vite dev server
+php artisan test --compact   # run tests
+vendor/bin/pint --dirty      # format changed PHP files
+```
 
-- **Logic**: Business logic must reside in `app/Actions/` rather than directly in Livewire components.
-- **Styling**: Use Tailwind CSS 4 utility classes.
-- **Testing**: Every feature must have a corresponding Pest test in `tests/Feature/`.
-- **Formatting**: Run `vendor/bin/pint` before committing.
+## Guidelines
+
+- Business logic → `app/Actions/`, not Livewire methods
+- Raw SQL date ops → `strftime()` (SQLite, not MySQL)
+- Routes → always use named routes via `route()` helper
+- Tests → Pest feature tests in `tests/Feature/`, run after every change

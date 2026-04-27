@@ -218,10 +218,12 @@ Example:
 
 ## Known Architectural Notes
 
-- **Categories have no `user_id`** — categories are shared globally across all users. Do not add per-user category filtering unless explicitly asked.
+- **Categories are per-user** — `categories` table has `user_id`. Scoped via `UserCategoryScope` global scope on the `Category` model. New users are seeded with 21 default categories via `DefaultCategories` data class on registration.
 - **Transaction chart** listens to `chart-data-updated` event dispatched from the PHP component. When chart data changes, PHP dispatches the event with new data, Alpine re-renders the chart.
 - **ApexCharts** is loaded synchronously in `resources/views/layouts/app/sidebar.blade.php` before `@fluxScripts`. Do not move it to `<head>` or add `defer` — this breaks Alpine initialization order.
 - **Chart Alpine x-data** — use `$refs` directly in `x-init`/`x-on` handlers. Use `this.$refs` inside x-data methods. Never use `\$refs` (backslash) — Blade outputs it as literal `\$refs` which is invalid JS.
+- **Income sound** — when a transaction is saved as `income`, the `save()` method dispatches `income-saved` browser event. Alpine listener in `manage-transactions` plays `public/sounds/cha-ching.mp3`. Capture type in `$wasIncome` BEFORE calling `resetForm()` or the check always fails.
+- **Add Transaction FAB** — dashboard has a fixed circular button (`bottom-6 right-6`) linking to `route('transactions')?create=1`. The manage-transactions component auto-opens the create modal when `?create=1` is present in the URL (handled in `mount()`).
 
 ## Actions Pattern
 
