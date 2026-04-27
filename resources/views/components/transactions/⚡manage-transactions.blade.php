@@ -61,6 +61,10 @@ new #[Title('Manage Your Transactions')] class extends Component {
     public function mount(): void
     {
         $this->date = now()->format('Y-m-d');
+
+        if (request()->query('create') === '1') {
+            $this->showModal = true;
+        }
     }
 
     // ─── Computed Properties ──────────────────────────────────────────
