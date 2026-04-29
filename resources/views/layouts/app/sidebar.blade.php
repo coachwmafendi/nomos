@@ -95,11 +95,11 @@
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
-        {{-- Mobile FAB — fixed bottom-right, hidden on desktop --}}
+        {{-- FAB — fixed bottom-right, all screen sizes --}}
         <a
             href="{{ route('transactions') }}?create=1"
             wire:navigate
-            class="lg:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-indigo-500 text-white shadow-lg hover:bg-indigo-600 active:bg-indigo-700 transition-colors"
+            class="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-violet-600 text-white shadow-lg hover:bg-violet-700 active:bg-violet-800 transition-colors"
             aria-label="Add Transaction"
         >
             <flux:icon name="plus" class="size-6" />

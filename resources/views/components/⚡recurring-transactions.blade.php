@@ -154,62 +154,62 @@ new class extends Component {
         </flux:button>
     </div>
 
-    {{-- Form --}}
-    @if($showForm)
-    <div class="bg-white dark:bg-zinc-900 rounded-xl p-6 shadow-sm mb-6">
-        <h3 class="font-semibold mb-4">{{ $editingId ? 'Edit' : 'New' }} Recurring Transaction</h3>
+    {{-- Form Modal --}}
+    <flux:modal wire:model.self="showForm" class="md:w-[560px]">
+        <form wire:submit="save" class="space-y-6">
+            <flux:heading size="lg">{{ $editingId ? 'Edit' : 'New' }} Recurring Transaction</flux:heading>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <flux:input
-                wire:model="name"
-                label="Name"
-                placeholder="e.g. Gaji, Sewa, Netflix"
-            />
-            <flux:input
-                wire:model="amount"
-                label="Amount (RM)"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-            />
-            <flux:select wire:model="type" label="Type">
-                <flux:select.option value="income">Income</flux:select.option>
-                <flux:select.option value="expense">Expense</flux:select.option>
-            </flux:select>
-            <flux:select wire:model="frequency" label="Frequency">
-                <flux:select.option value="daily">Daily</flux:select.option>
-                <flux:select.option value="weekly">Weekly</flux:select.option>
-                <flux:select.option value="monthly">Monthly</flux:select.option>
-                <flux:select.option value="yearly">Yearly</flux:select.option>
-            </flux:select>
-            <flux:select wire:model="category_id" label="Category (Optional)">
-                <flux:select.option value="">-- No Category --</flux:select.option>
-                @foreach($this->categories as $cat)
-                    <flux:select.option value="{{ $cat->id }}">{{ $cat->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-            <flux:input
-                wire:model="start_date"
-                label="Start Date"
-                type="date"
-            />
-            <flux:input
-                wire:model="end_date"
-                label="End Date (Optional)"
-                type="date"
-            />
-        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <flux:input
+                    wire:model="name"
+                    label="Name"
+                    placeholder="e.g. Gaji, Sewa, Netflix"
+                />
+                <flux:input
+                    wire:model="amount"
+                    label="Amount (RM)"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                />
+                <flux:select wire:model="type" label="Type">
+                    <flux:select.option value="income">Income</flux:select.option>
+                    <flux:select.option value="expense">Expense</flux:select.option>
+                </flux:select>
+                <flux:select wire:model="frequency" label="Frequency">
+                    <flux:select.option value="daily">Daily</flux:select.option>
+                    <flux:select.option value="weekly">Weekly</flux:select.option>
+                    <flux:select.option value="monthly">Monthly</flux:select.option>
+                    <flux:select.option value="yearly">Yearly</flux:select.option>
+                </flux:select>
+                <flux:select wire:model="category_id" label="Category (Optional)">
+                    <flux:select.option value="">-- No Category --</flux:select.option>
+                    @foreach($this->categories as $cat)
+                        <flux:select.option value="{{ $cat->id }}">{{ $cat->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:input
+                    wire:model="start_date"
+                    label="Start Date"
+                    type="date"
+                />
+                <flux:input
+                    wire:model="end_date"
+                    label="End Date (Optional)"
+                    type="date"
+                />
+            </div>
 
-        <div class="flex gap-3 mt-6">
-            <flux:button wire:click="save" variant="primary">
-                {{ $editingId ? 'Update' : 'Save' }}
-            </flux:button>
-            <flux:button wire:click="$set('showForm', false)" variant="ghost">
-                Cancel
-            </flux:button>
-        </div>
-    </div>
-    @endif
+            <div class="flex justify-end gap-3">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">
+                    {{ $editingId ? 'Update' : 'Save' }}
+                </flux:button>
+            </div>
+        </form>
+    </flux:modal>
 
     {{-- Pending Section --}}
     @php $pending = $this->recurringList->where('is_active', true)->filter(fn($r) => $r->next_due_date->lte(now())); @endphp

@@ -152,33 +152,37 @@ new #[Title('Manage Your Budget')] class extends Component {
         <flux:button wire:click="nextMonth()" icon="chevron-right" variant="ghost" size="sm" />
     </div>
 
-    {{-- Form --}}
-    @if($showForm)
-    <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-5 mb-6">
-        <h3 class="font-medium mb-4">{{ $editingId ? 'Edit Budget' : 'Set Budget' }}</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <flux:select wire:model="category_id" label="Category">
-                <option value="0">-- Select Category --</option>
-                @foreach($this->categories as $cat)
-                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                @endforeach
-            </flux:select>
+    {{-- Form Modal --}}
+    <flux:modal wire:model.self="showForm" class="md:w-96">
+        <form wire:submit="save" class="space-y-6">
+            <flux:heading size="lg">{{ $editingId ? 'Edit Budget' : 'Set Budget' }}</flux:heading>
 
-            <flux:input
-                wire:model="amount"
-                label="Budget Amount (RM)"
-                type="number"
-                min="1"
-                step="0.01"
-                placeholder="e.g. 500"
-            />
-        </div>
-        <div class="flex gap-3 mt-4">
-            <flux:button wire:click="save()" variant="primary">Save</flux:button>
-            <flux:button wire:click="$set('showForm', false)" variant="ghost">Cancel</flux:button>
-        </div>
-    </div>
-    @endif
+            <div class="grid grid-cols-1 gap-4">
+                <flux:select wire:model="category_id" label="Category">
+                    <option value="0">-- Select Category --</option>
+                    @foreach($this->categories as $cat)
+                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                    @endforeach
+                </flux:select>
+
+                <flux:input
+                    wire:model="amount"
+                    label="Budget Amount (RM)"
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    placeholder="e.g. 500"
+                />
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Save</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 
     {{-- Budget List --}}
     @forelse($budgetList as $item)
