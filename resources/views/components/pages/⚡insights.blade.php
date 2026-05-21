@@ -226,7 +226,7 @@ new class extends Component
     public function weekendVsWeekday(): array
     {
         $rows = $this->expenseBaseQuery()
-            ->selectRaw('CASE WHEN ' . \App\Support\DateExpression::dayOfWeek() . ' IN (0, 6) THEN 'weekend' ELSE 'weekday' END as bucket, SUM(amount) as total')
+            ->selectRaw("CASE WHEN " . \App\Support\DateExpression::dayOfWeek() . " IN (0, 6) THEN 'weekend' ELSE 'weekday' END as bucket, SUM(amount) as total")
             ->groupBy('bucket')
             ->pluck('total', 'bucket');
 
