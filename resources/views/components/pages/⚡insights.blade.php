@@ -95,7 +95,7 @@ new class extends Component
     {
         $row = $this->categoryBaseQuery()
             ->whereBetween('transactions.date', [$this->dateFrom, $this->dateTo])
-            ->selectRaw('COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total')
+            ->selectRaw("COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total")
             ->groupBy('name')
             ->orderByDesc('total')
             ->first();
@@ -136,7 +136,7 @@ new class extends Component
     {
         return $this->categoryBaseQuery()
             ->whereBetween('transactions.date', [$this->dateFrom, $this->dateTo])
-            ->selectRaw('COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total')
+            ->selectRaw("COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total")
             ->groupBy('name')
             ->orderByDesc('total')
             ->limit(6)
@@ -153,13 +153,13 @@ new class extends Component
 
         $current = $this->categoryBaseQuery()
             ->whereBetween('transactions.date', [$currentStart, $currentEnd])
-            ->selectRaw('COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total')
+            ->selectRaw("COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total")
             ->groupBy('name')
             ->pluck('total', 'name');
 
         $previous = $this->categoryBaseQuery()
             ->whereBetween('transactions.date', [$previousStart, $previousEnd])
-            ->selectRaw('COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total')
+            ->selectRaw("COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total")
             ->groupBy('name')
             ->pluck('total', 'name');
 
