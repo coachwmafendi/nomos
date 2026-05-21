@@ -14,16 +14,11 @@ class ExportController extends Controller
         $dateTo = $request->get('to', now()->endOfMonth()->format('Y-m-d'));
 
         $transactions = Transaction::with('category')
-        // ->where('user_id', auth()->id())
+            ->where('user_id', auth()->id())
             ->whereDate('date', '>=', $dateFrom)
             ->whereDate('date', '<=', $dateTo)
             ->orderBy('date', 'desc')
             ->get();
-
-        // debug sementara — tengok berapa record dapat
-        dd(Transaction::first()->toArray(), // tengok semua attribute values
-            auth()->id(), // tengok user_id semasa
-        );
 
         $filename = 'transactions-'.$dateFrom.'-to-'.$dateTo.'.csv';
 

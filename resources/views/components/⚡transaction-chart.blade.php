@@ -40,9 +40,9 @@ new class extends Component
 
     protected function forgetChartCache(int $year): void
     {
-        Cache::forget("chart_data_{$year}_");
+        Cache::forget("chart_data_" . auth()->id() . "_{$year}_");
         for ($m = 1; $m <= 12; $m++) {
-            Cache::forget("chart_data_{$year}_{$m}");
+            Cache::forget("chart_data_" . auth()->id() . "_{$year}_{$m}");
         }
     }
 
@@ -79,7 +79,7 @@ new class extends Component
     #[Computed]
     public function chartData(): array
     {
-        $cacheKey = "chart_data_{$this->selectedYear}_{$this->selectedMonth}";
+        $cacheKey = "chart_data_" . auth()->id() . "_{$this->selectedYear}_{$this->selectedMonth}";
 
         return Cache::remember($cacheKey, 300, function () {
             return $this->selectedMonth ? $this->dailyData() : $this->monthlyData();

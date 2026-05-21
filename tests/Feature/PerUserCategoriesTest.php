@@ -10,8 +10,13 @@ it('scopes categories to the authenticated user', function () {
     $userA = User::factory()->create();
     $userB = User::factory()->create();
 
-    $catA = Category::create(['name' => 'A Cat', 'type' => 'expense', 'user_id' => $userA->id]);
-    $catB = Category::create(['name' => 'B Cat', 'type' => 'expense', 'user_id' => $userB->id]);
+    $catA = new Category(['name' => 'A Cat', 'type' => 'expense']);
+    $catA->user_id = $userA->id;
+    $catA->save();
+
+    $catB = new Category(['name' => 'B Cat', 'type' => 'expense']);
+    $catB->user_id = $userB->id;
+    $catB->save();
 
     $this->actingAs($userA);
 
@@ -23,7 +28,9 @@ it('scopes categories to the authenticated user', function () {
 
 it('returns all categories when unauthenticated (for seeders)', function () {
     $userA = User::factory()->create();
-    Category::create(['name' => 'A Cat', 'type' => 'expense', 'user_id' => $userA->id]);
+    $cat = new Category(['name' => 'A Cat', 'type' => 'expense']);
+    $cat->user_id = $userA->id;
+    $cat->save();
 
     // No actingAs — unauthenticated context
     $categories = Category::all();

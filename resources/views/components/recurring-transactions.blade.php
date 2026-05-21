@@ -9,18 +9,18 @@ new class extends Component {
 
 public function confirm(int $id): void
 {
-    $recurring = RecurringTransaction::findOrFail($id);
+    $recurring = RecurringTransaction::where('user_id', auth()->id())->findOrFail($id);
 
     // Cipta transaction baru
-    \App\Models\Transaction::create([
-        'user_id'     => auth()->id(),
+    $transaction = new Transaction([
         'category_id' => $recurring->category_id,
-        'name'        => $recurring->name,
+        'description' => $recurring->name,
         'amount'      => $recurring->amount,
         'type'        => $recurring->type,
         'date'        => now()->toDateString(),
-        'note'        => 'Auto from recurring',
     ]);
+    $transaction->user_id = auth()->id();
+    $transaction->save();
 
     // Update next due date
     $recurring->update([
@@ -30,7 +30,7 @@ public function confirm(int $id): void
 
 public function skip(int $id): void
 {
-    $recurring = RecurringTransaction::findOrFail($id);
+    $recurring = RecurringTransaction::where('user_id', auth()->id())->findOrFail($id);
 
     // Skip — just update next due date
     $recurring->update([

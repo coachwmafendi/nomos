@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class Budget extends Model
 {
     protected $fillable = [
-        'user_id',
         'category_id',
         'amount',
         'month',
         'year',
     ];
+
+    protected $guarded = ['user_id'];
 
     public function category()
     {

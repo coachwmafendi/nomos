@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class RecurringTransaction extends Model
 {
     protected $fillable = [
-        'user_id',
         'category_id',
         'name',
         'amount',
@@ -19,6 +18,8 @@ class RecurringTransaction extends Model
         'end_date',
         'is_active',
     ];
+
+    protected $guarded = ['user_id'];
 
     protected $casts = [
         'amount' => 'decimal:2',

@@ -78,7 +78,7 @@ new #[Title('Manage Your Budget')] class extends Component {
         $this->showForm = true;
 
         if ($id) {
-            $budget            = Budget::find($id);
+            $budget            = Budget::where('user_id', auth()->id())->findOrFail($id);
             $this->editingId   = $budget->id;
             $this->category_id = $budget->category_id;
             $this->amount      = $budget->amount;
@@ -92,15 +92,14 @@ new #[Title('Manage Your Budget')] class extends Component {
             'amount'      => 'required|numeric|min:1',
         ]);
 
-        Budget::updateOrCreate(
-            [
-                'user_id'     => auth()->id(),
-                'category_id' => $this->category_id,
-                'month'       => $this->month,
-                'year'        => $this->year,
-            ],
-            ['amount' => $this->amount]
-        );
+        $budget = Budget::firstOrNew([
+            'category_id' => $this->category_id,
+            'month'       => $this->month,
+            'year'        => $this->year,
+        ]);
+        $budget->user_id = auth()->id();
+        $budget->amount = $this->amount;
+        $budget->save();
 
         $this->reset(['category_id', 'amount', 'editingId', 'showForm']);
         $this->refreshBudgetList();

@@ -58,6 +58,16 @@ new #[Title('Manage Your Transactions')] class extends Component {
 
     public bool $removeExistingAttachment = false;
 
+    public function boot(): void
+    {
+        if (! in_array($this->sortBy, ['date', 'amount', 'description'])) {
+            $this->sortBy = 'date';
+        }
+        if (! in_array($this->sortDir, ['asc', 'desc'])) {
+            $this->sortDir = 'desc';
+        }
+    }
+
     public function mount(): void
     {
         $this->date = now()->format('Y-m-d');

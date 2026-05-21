@@ -14,11 +14,9 @@ class UserObserver
     public function created(User $user): void
     {
         foreach (DefaultCategories::LIST as $category) {
-            Category::create([
-                'name' => $category['name'],
-                'type' => $category['type'],
-                'user_id' => $user->id,
-            ]);
+            $cat = new Category(['name' => $category['name'], 'type' => $category['type']]);
+            $cat->user_id = $user->id;
+            $cat->save();
         }
     }
 }

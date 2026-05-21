@@ -46,7 +46,7 @@ new class extends Component {
 
     public function edit(int $id): void
     {
-        $recurring = RecurringTransaction::findOrFail($id);
+        $recurring = RecurringTransaction::where('user_id', auth()->id())->findOrFail($id);
 
         $this->editingId   = $id;
         $this->name        = $recurring->name;
@@ -84,9 +84,11 @@ new class extends Component {
         ];
 
         if ($this->editingId) {
-            RecurringTransaction::findOrFail($this->editingId)->update($data);
+            RecurringTransaction::where('user_id', auth()->id())->findOrFail($this->editingId)->update($data);
         } else {
-            RecurringTransaction::create($data);
+            $recurring = new RecurringTransaction($data);
+            $recurring->user_id = auth()->id();
+            $recurring->save();
         }
 
         $this->resetForm();
@@ -95,16 +97,17 @@ new class extends Component {
 
     public function confirm(int $id): void
     {
-        $recurring = RecurringTransaction::findOrFail($id);
+        $recurring = RecurringTransaction::where('user_id', auth()->id())->findOrFail($id);
 
-        \App\Models\Transaction::create([
-            'user_id'     => auth()->id(),
+        $transaction = new Transaction([
             'category_id' => $recurring->category_id,
-            'description' => $recurring->name,  // <-- tukar 'name' kepada 'description'
+            'description' => $recurring->name,
             'amount'      => $recurring->amount,
             'type'        => $recurring->type,
             'date'        => now()->toDateString(),
         ]);
+        $transaction->user_id = auth()->id();
+        $transaction->save();
 
         $recurring->update([
             'next_due_date' => $recurring->calculateNextDueDate(),
@@ -113,7 +116,7 @@ new class extends Component {
 
     public function skip(int $id): void
     {
-        $recurring = RecurringTransaction::findOrFail($id);
+        $recurring = RecurringTransaction::where('user_id', auth()->id())->findOrFail($id);
 
         $recurring->update([
             'next_due_date' => $recurring->calculateNextDueDate(),
@@ -122,13 +125,13 @@ new class extends Component {
 
     public function toggleActive(int $id): void
     {
-        $recurring = RecurringTransaction::findOrFail($id);
+        $recurring = RecurringTransaction::where('user_id', auth()->id())->findOrFail($id);
         $recurring->update(['is_active' => !$recurring->is_active]);
     }
 
     public function delete(int $id): void
     {
-        RecurringTransaction::findOrFail($id)->delete();
+        RecurringTransaction::where('user_id', auth()->id())->findOrFail($id)->delete();
     }
 
     private function resetForm(): void

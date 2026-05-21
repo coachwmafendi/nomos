@@ -9,13 +9,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Transaction extends Model
 {
     protected $fillable = [
-        'user_id',
         'description',
         'amount',
         'type',
         'category_id',
         'date',
     ];
+
+    protected $guarded = ['user_id'];
 
     protected static function booted(): void
     {
