@@ -462,47 +462,80 @@ new #[Title('Manage Your Transactions')] class extends Component {
     x-data
     x-on:income-saved.window="new Audio('/sounds/cha-ching.mp3').play()"
 >
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
-            <h2 class="text-lg font-semibold">Transactions</h2>
+    {{-- ─── Page Header ─── --}}
+    <div class="flex items-start justify-between flex-wrap gap-4 mb-7 animate-slide-up" style="animation-delay: 0s">
+        <div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400 mb-1">Finance</p>
+            <h1 class="text-xl font-bold text-white">Transactions</h1>
+        </div>
 
-            <div class="flex items-center gap-3">
-                <flux:input type="date" wire:model.live="dateFrom" label="From" />
-                <span class="text-gray-400 mt-5">→</span>
-                <flux:input type="date" wire:model.live="dateTo" label="To" />
+        <div class="flex items-center gap-3 flex-wrap">
+            <flux:input type="date" wire:model.live="dateFrom" label="From" />
+            <span class="text-zinc-500 mt-5">→</span>
+            <flux:input type="date" wire:model.live="dateTo" label="To" />
 
-                <flux:button wire:click="exportCsv" icon="arrow-down-tray" variant="ghost">
-                    Export CSV
-                </flux:button>
+            <flux:button wire:click="exportCsv" icon="arrow-down-tray" variant="ghost">
+                Export CSV
+            </flux:button>
 
-                <flux:button wire:click="openCreate()" icon="plus" variant="primary">
-                    Add Transaction
-                </flux:button>
-            </div>
+            <flux:button wire:click="openCreate()" icon="plus" variant="primary">
+                Add Transaction
+            </flux:button>
         </div>
     </div>
 
+    {{-- ─── Summary Stat Cards ─── --}}
     @island('summary-card', always:true)
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
-            <flux:subheading>Total Income</flux:subheading>
-            <p class="text-2xl font-bold text-green-500 mt-1">
-                RM {{ number_format($this->summary['income'], 2) }}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mb-6">
+        {{-- Income --}}
+        <div class="group relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden animate-slide-up hover:border-zinc-700 transition-colors duration-200" style="animation-delay: 0.04s">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent"></div>
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+                    </svg>
+                </div>
+                <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Income</span>
+            </div>
+            <p class="text-2xl font-bold text-white tabular-nums leading-none">
+                <span class="text-sm font-semibold text-zinc-400 mr-0.5">RM</span>{{ number_format($this->summary['income'], 2) }}
             </p>
+            <p class="text-xs text-zinc-400 mt-2">All time</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
-            <flux:subheading>Total Expense</flux:subheading>
-            <p class="text-2xl font-bold text-red-500 mt-1">
-                RM {{ number_format($this->summary['expense'], 2) }}
+        {{-- Expense --}}
+        <div class="group relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden animate-slide-up hover:border-zinc-700 transition-colors duration-200" style="animation-delay: 0.08s">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-rose-500/60 to-transparent"></div>
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-9 h-9 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6L9 12.75l4.306-4.307a11.95 11.95 0 015.814 5.519l2.74 1.22m0 0l-5.94 2.28m5.94-2.28l-2.28-5.941" />
+                    </svg>
+                </div>
+                <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Expense</span>
+            </div>
+            <p class="text-2xl font-bold text-white tabular-nums leading-none">
+                <span class="text-sm font-semibold text-zinc-400 mr-0.5">RM</span>{{ number_format($this->summary['expense'], 2) }}
             </p>
+            <p class="text-xs text-zinc-400 mt-2">All time</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
-            <flux:subheading>Balance</flux:subheading>
-            <p class="text-2xl font-bold mt-1 {{ $this->summary['balance'] >= 0 ? 'text-blue-500' : 'text-red-500' }}">
-                RM {{ number_format($this->summary['balance'], 2) }}
+        {{-- Balance --}}
+        <div class="group relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden animate-slide-up hover:border-zinc-700 transition-colors duration-200" style="animation-delay: 0.12s">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent {{ $this->summary['balance'] >= 0 ? 'via-violet-500/60' : 'via-amber-500/60' }} to-transparent"></div>
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-9 h-9 rounded-xl {{ $this->summary['balance'] >= 0 ? 'bg-violet-500/10' : 'bg-amber-500/10' }} flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 {{ $this->summary['balance'] >= 0 ? 'text-violet-400' : 'text-amber-400' }}" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
+                    </svg>
+                </div>
+                <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Balance</span>
+            </div>
+            <p class="text-2xl font-bold text-white tabular-nums leading-none">
+                <span class="text-sm font-semibold text-zinc-400 mr-0.5">RM</span>{{ number_format($this->summary['balance'], 2) }}
             </p>
+            <p class="text-xs text-zinc-400 mt-2">Net position</p>
         </div>
     </div>
     @endisland
@@ -513,47 +546,55 @@ new #[Title('Manage Your Transactions')] class extends Component {
         :key="'transaction-chart-'.$this->income.'-'.$this->expenses"
     />
 
-    <div class="grid gap-4" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
-        <flux:input
-            wire:model.live.debounce.300ms="search"
-            placeholder="Search transactions..."
-            icon="magnifying-glass"
-            clearable
-        />
+    {{-- ─── Filter Bar ─── --}}
+    <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-4 mb-5 overflow-hidden animate-slide-up" style="animation-delay: 0.12s">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+        <div class="grid gap-4" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+            <flux:input
+                wire:model.live.debounce.300ms="search"
+                placeholder="Search transactions..."
+                icon="magnifying-glass"
+                clearable
+            />
 
-        <flux:select wire:model.live="filterType" placeholder="All Types">
-            <flux:select.option value="">All Types</flux:select.option>
-            <flux:select.option value="income">Income</flux:select.option>
-            <flux:select.option value="expense">Expense</flux:select.option>
-        </flux:select>
+            <flux:select wire:model.live="filterType" placeholder="All Types">
+                <flux:select.option value="">All Types</flux:select.option>
+                <flux:select.option value="income">Income</flux:select.option>
+                <flux:select.option value="expense">Expense</flux:select.option>
+            </flux:select>
 
-        <flux:select wire:model.live="filterCategory" placeholder="All Categories">
-            <flux:select.option value="">All Categories</flux:select.option>
+            <flux:select wire:model.live="filterCategory" placeholder="All Categories">
+                <flux:select.option value="">All Categories</flux:select.option>
 
-            @if(!empty($this->categories['income']))
-                <optgroup label="── Income ──">
-                    @foreach($this->categories['income'] as $id => $name)
-                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
-                    @endforeach
-                </optgroup>
-            @endif
+                @if(!empty($this->categories['income']))
+                    <optgroup label="── Income ──">
+                        @foreach($this->categories['income'] as $id => $name)
+                            <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                        @endforeach
+                    </optgroup>
+                @endif
 
-            @if(!empty($this->categories['expense']))
-                <optgroup label="── Expense ──">
-                    @foreach($this->categories['expense'] as $id => $name)
-                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
-                    @endforeach
-                </optgroup>
-            @endif
-        </flux:select>
+                @if(!empty($this->categories['expense']))
+                    <optgroup label="── Expense ──">
+                        @foreach($this->categories['expense'] as $id => $name)
+                            <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                        @endforeach
+                    </optgroup>
+                @endif
+            </flux:select>
+        </div>
     </div>
 
-    <x-transactions.transactions-table
-        :transactions="$this->transactions"
-        :sort-by="$sortBy"
-        :sort-dir="$sortDir"
-        :is-filtering="$this->isFiltering"
-    />
+    {{-- ─── Transaction Table ─── --}}
+    <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl overflow-hidden animate-slide-up" style="animation-delay: 0.16s">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+        <x-transactions.transactions-table
+            :transactions="$this->transactions"
+            :sort-by="$sortBy"
+            :sort-dir="$sortDir"
+            :is-filtering="$this->isFiltering"
+        />
+    </div>
 
     {{-- ─── Create / Edit Modal ─── --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Scopes\UserCategoryScope;
-use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Model;
 
 class Category extends Model

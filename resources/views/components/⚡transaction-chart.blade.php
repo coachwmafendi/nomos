@@ -50,7 +50,7 @@ new class extends Component
     public function availableYears(): array
     {
         $years = Transaction::query()
-            ->selectRaw("CAST(strftime('%Y', date) AS INTEGER) as year")
+            ->selectRaw(\App\Support\DateExpression::year() . ' as year')
             ->distinct()
             ->orderBy('year', 'desc')
             ->pluck('year')
@@ -91,10 +91,10 @@ new class extends Component
         
 
         $rows = Transaction::query()
-            ->selectRaw("type, CAST(strftime('%m', date) AS INTEGER) as month, SUM(amount) as total")
-            ->whereRaw("strftime('%Y', date) = ?", [(string) $this->selectedYear])
+            ->selectRaw("type, " . \App\Support\DateExpression::month() . " as month, SUM(amount) as total")
+            ->whereRaw(\App\Support\DateExpression::year() . ' = ?', [(string) $this->selectedYear])
             ->whereIn('type', ['income', 'expense'])
-            ->groupByRaw("type, strftime('%m', date)")
+            ->groupByRaw("type, " . \App\Support\DateExpression::month())
             ->get()
             ->groupBy('type');
 
@@ -120,11 +120,11 @@ new class extends Component
         $pad   = str_pad($month, 2, '0', STR_PAD_LEFT);
 
         $rows = Transaction::query()
-            ->selectRaw("type, CAST(strftime('%d', date) AS INTEGER) as day, SUM(amount) as total")
-            ->whereRaw("strftime('%Y', date) = ?", [(string) $year])
-            ->whereRaw("strftime('%m', date) = ?", [$pad])
+            ->selectRaw("type, " . \App\Support\DateExpression::day() . " as day, SUM(amount) as total")
+            ->whereRaw(\App\Support\DateExpression::year() . ' = ?', [(string) $year])
+            ->whereRaw(\App\Support\DateExpression::month() . ' = ?', [$pad])
             ->whereIn('type', ['income', 'expense'])
-            ->groupByRaw("type, strftime('%d', date)")
+            ->groupByRaw("type, " . \App\Support\DateExpression::day())
             ->get()
             ->groupBy('type');
 

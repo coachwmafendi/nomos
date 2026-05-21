@@ -67,7 +67,6 @@ return [
 
     'timezone' => 'Asia/Kuala_Lumpur',
 
-
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

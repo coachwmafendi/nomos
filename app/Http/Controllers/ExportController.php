@@ -11,21 +11,21 @@ class ExportController extends Controller
     {
 
         $dateFrom = $request->get('from', now()->startOfMonth()->format('Y-m-d'));
-        $dateTo   = $request->get('to', now()->endOfMonth()->format('Y-m-d'));
+        $dateTo = $request->get('to', now()->endOfMonth()->format('Y-m-d'));
 
         $transactions = Transaction::with('category')
         // ->where('user_id', auth()->id())
-        ->whereDate('date', '>=', $dateFrom)
-        ->whereDate('date', '<=', $dateTo)
-        ->orderBy('date', 'desc')
-        ->get();
+            ->whereDate('date', '>=', $dateFrom)
+            ->whereDate('date', '<=', $dateTo)
+            ->orderBy('date', 'desc')
+            ->get();
 
         // debug sementara — tengok berapa record dapat
-        dd(\App\Models\Transaction::first()->toArray(), // tengok semua attribute values
+        dd(Transaction::first()->toArray(), // tengok semua attribute values
             auth()->id(), // tengok user_id semasa
         );
-        
-        $filename = 'transactions-' . $dateFrom . '-to-' . $dateTo . '.csv';
+
+        $filename = 'transactions-'.$dateFrom.'-to-'.$dateTo.'.csv';
 
         return response()->streamDownload(function () use ($transactions) {
             $handle = fopen('php://output', 'w');

@@ -95,7 +95,7 @@ new class extends Component
     {
         $row = $this->categoryBaseQuery()
             ->whereBetween('transactions.date', [$this->dateFrom, $this->dateTo])
-            ->selectRaw('COALESCE(categories.name, "Uncategorized") as name, SUM(transactions.amount) as total')
+            ->selectRaw('COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total')
             ->groupBy('name')
             ->orderByDesc('total')
             ->first();
@@ -136,7 +136,7 @@ new class extends Component
     {
         return $this->categoryBaseQuery()
             ->whereBetween('transactions.date', [$this->dateFrom, $this->dateTo])
-            ->selectRaw('COALESCE(categories.name, "Uncategorized") as name, SUM(transactions.amount) as total')
+            ->selectRaw('COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total')
             ->groupBy('name')
             ->orderByDesc('total')
             ->limit(6)
@@ -153,13 +153,13 @@ new class extends Component
 
         $current = $this->categoryBaseQuery()
             ->whereBetween('transactions.date', [$currentStart, $currentEnd])
-            ->selectRaw('COALESCE(categories.name, "Uncategorized") as name, SUM(transactions.amount) as total')
+            ->selectRaw('COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total')
             ->groupBy('name')
             ->pluck('total', 'name');
 
         $previous = $this->categoryBaseQuery()
             ->whereBetween('transactions.date', [$previousStart, $previousEnd])
-            ->selectRaw('COALESCE(categories.name, "Uncategorized") as name, SUM(transactions.amount) as total')
+            ->selectRaw('COALESCE(categories.name, 'Uncategorized') as name, SUM(transactions.amount) as total')
             ->groupBy('name')
             ->pluck('total', 'name');
 
@@ -201,7 +201,7 @@ new class extends Component
     public function highestSpendingDay(): array
     {
         $row = $this->expenseBaseQuery()
-            ->selectRaw("CAST(strftime('%w', date) AS INTEGER) as weekday, SUM(amount) as total")
+            ->selectRaw(\App\Support\DateExpression::dayOfWeek() . ' as weekday, SUM(amount) as total')
             ->groupBy('weekday')
             ->orderByDesc('total')
             ->first();
@@ -226,7 +226,7 @@ new class extends Component
     public function weekendVsWeekday(): array
     {
         $rows = $this->expenseBaseQuery()
-            ->selectRaw("CASE WHEN CAST(strftime('%w', date) AS INTEGER) IN (0, 6) THEN 'weekend' ELSE 'weekday' END as bucket, SUM(amount) as total")
+            ->selectRaw('CASE WHEN ' . \App\Support\DateExpression::dayOfWeek() . ' IN (0, 6) THEN 'weekend' ELSE 'weekday' END as bucket, SUM(amount) as total')
             ->groupBy('bucket')
             ->pluck('total', 'bucket');
 
@@ -348,88 +348,115 @@ new class extends Component
         .insight-delay-5 { animation-delay: 0.15s; }
     </style>
 
-    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between insight-animate">
+    {{-- Page Header --}}
+    <div class="flex items-start justify-between flex-wrap gap-4 mb-7 animate-slide-up" style="animation-delay: 0s">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Insights</h1>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Understand where your money goes and what changed this month.</p>
-            <p class="text-sm text-gray-600 dark:text-gray-300 mt-3">{{ $this->summaryText }}</p>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400 mb-1">Analytics</p>
+            <h1 class="text-xl font-bold text-white">Insights</h1>
+            <p class="text-xs text-zinc-500 mt-1">Understand where your money goes and what changed this month.</p>
+            <p class="text-xs text-zinc-400 mt-2">{{ $this->summaryText }}</p>
         </div>
-
         <div class="flex flex-wrap items-center gap-2">
-            <button wire:click="previousMonth" class="px-3 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-sm">←</button>
-            <input disabled type="month" wire:model.live="month" class="px-3 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-sm" />
-            <button wire:click="nextMonth" class="px-3 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-sm">→</button>
+            <button wire:click="previousMonth" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors">←</button>
+            <input disabled type="month" wire:model.live="month" class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-300 text-sm" />
+            <button wire:click="nextMonth" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors">→</button>
         </div>
     </div>
 
+    {{-- 4-col Stat Cards --}}
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate insight-delay-1 insight-hover">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Total spending</p>
-            <p class="text-2xl font-bold mt-2 text-gray-900 dark:text-white">RM {{ number_format($this->totalSpending, 2) }}</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">You spent this amount in the selected month.</p>
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate insight-delay-1 insight-hover">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Total spending</p>
+            <p class="text-2xl font-bold mt-2 text-white tabular-nums">RM {{ number_format($this->totalSpending, 2) }}</p>
+            <p class="text-xs text-zinc-400 mt-2">You spent this amount in the selected month.</p>
         </div>
 
-        <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate insight-delay-2 insight-hover">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Average per day</p>
-            <p class="text-2xl font-bold mt-2 text-gray-900 dark:text-white">RM {{ number_format($this->averageDailySpending, 2) }}</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Average daily spending for this period.</p>
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate insight-delay-2 insight-hover">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Average per day</p>
+            <p class="text-2xl font-bold mt-2 text-white tabular-nums">RM {{ number_format($this->averageDailySpending, 2) }}</p>
+            <p class="text-xs text-zinc-400 mt-2">Average daily spending for this period.</p>
         </div>
 
-        <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate insight-delay-3 insight-hover">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Top category</p>
-            <p class="text-2xl font-bold mt-2 text-gray-900 dark:text-white">{{ $this->topCategory['name'] }}</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">RM {{ number_format($this->topCategory['total'], 2) }} spent in this category.</p>
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate insight-delay-3 insight-hover">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Top category</p>
+            <p class="text-2xl font-bold mt-2 text-white">{{ $this->topCategory['name'] }}</p>
+            <p class="text-xs text-zinc-400 mt-2">RM {{ number_format($this->topCategory['total'], 2) }} spent in this category.</p>
         </div>
 
-        <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate insight-delay-4 insight-hover">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Biggest increase</p>
-            <p class="text-2xl font-bold mt-2 text-gray-900 dark:text-white">{{ $this->biggestIncrease['name'] }}</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">+RM {{ number_format(max(0, $this->biggestIncrease['difference']), 2) }} vs last month.</p>
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate insight-delay-4 insight-hover">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Biggest increase</p>
+            <p class="text-2xl font-bold mt-2 text-white">{{ $this->biggestIncrease['name'] }}</p>
+            <p class="text-xs text-zinc-400 mt-2">+RM {{ number_format(max(0, $this->biggestIncrease['difference']), 2) }} vs last month.</p>
         </div>
     </div>
 
+    {{-- Category Breakdown + Movement --}}
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate insight-delay-1 insight-hover">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Category breakdown</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">See which categories are driving your spending this month.</p>
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate insight-delay-1 insight-hover">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <h3 class="text-sm font-semibold text-white">Category breakdown</h3>
+            <p class="text-[11px] text-zinc-500 mt-0.5">See which categories are driving your spending this month.</p>
             <div class="mt-4 space-y-4">
-                @forelse($this->categoryBreakdown as $item)
-                    @php $percent = $this->totalSpending > 0 ? ($item->total / $this->totalSpending) * 100 : 0; @endphp
+                @php
+                    $gradients = [
+                        'from-violet-500 to-indigo-500',
+                        'from-emerald-500 to-teal-500',
+                        'from-amber-500 to-orange-500',
+                        'from-sky-500 to-cyan-500',
+                        'from-rose-500 to-pink-500',
+                    ];
+                    $dots = ['bg-violet-400', 'bg-emerald-400', 'bg-amber-400', 'bg-sky-400', 'bg-rose-400'];
+                @endphp
+                @forelse($this->categoryBreakdown as $index => $item)
+                    @php
+                        $percent = $this->totalSpending > 0 ? ($item->total / $this->totalSpending) * 100 : 0;
+                        $gradient = $gradients[$index % count($gradients)];
+                        $dot = $dots[$index % count($dots)];
+                    @endphp
                     <div>
-                        <div class="flex items-center justify-between text-sm mb-1">
-                            <span class="text-gray-700 dark:text-gray-200">{{ $item->name }}</span>
-                            <span class="text-gray-500 dark:text-gray-400">RM {{ number_format($item->total, 2) }} · {{ number_format($percent, 1) }}%</span>
+                        <div class="flex items-center justify-between text-sm mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full {{ $dot }} shrink-0"></span>
+                                <span class="text-zinc-300 text-xs">{{ $item->name }}</span>
+                            </div>
+                            <span class="text-zinc-500 text-xs">RM {{ number_format($item->total, 2) }} · {{ number_format($percent, 1) }}%</span>
                         </div>
-                        <div class="w-full h-2 rounded-full bg-gray-100 dark:bg-zinc-800 overflow-hidden">
-                            <div class="h-2 rounded-full bg-red-500 transition-all duration-700" style="width: {{ $percent }}%"></div>
+                        <div class="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                            <div class="h-1.5 rounded-full bg-gradient-to-r {{ $gradient }} transition-all duration-700" style="width: {{ $percent }}%"></div>
                         </div>
                     </div>
                 @empty
-                    <p class="text-sm text-gray-500 dark:text-gray-400">No category data for this month.</p>
+                    <p class="text-xs text-zinc-500">No category data for this month.</p>
                 @endforelse
             </div>
         </div>
 
-        <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate insight-delay-2 insight-hover">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Category movement</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">The biggest increase and decrease compared to last month.</p>
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate insight-delay-2 insight-hover">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <h3 class="text-sm font-semibold text-white">Category movement</h3>
+            <p class="text-[11px] text-zinc-500 mt-0.5">The biggest increase and decrease compared to last month.</p>
             <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div class="rounded-lg bg-red-50 dark:bg-red-500/10 p-4 border border-red-100 dark:border-red-500/20">
-                    <p class="text-sm font-medium text-red-700 dark:text-red-300">Biggest increase</p>
-                    <p class="text-lg font-bold mt-1 text-red-700 dark:text-red-300">{{ $this->biggestIncrease['name'] }}</p>
-                    <p class="text-sm mt-1 text-red-600 dark:text-red-400">+RM {{ number_format(max(0, $this->biggestIncrease['difference']), 2) }}</p>
+                <div class="bg-rose-500/8 border border-rose-500/20 rounded-xl p-4">
+                    <p class="text-xs font-medium text-rose-400">Biggest increase</p>
+                    <p class="text-base font-bold mt-1 text-rose-300">{{ $this->biggestIncrease['name'] }}</p>
+                    <p class="text-xs mt-1 text-rose-400">+RM {{ number_format(max(0, $this->biggestIncrease['difference']), 2) }}</p>
                 </div>
-                <div class="rounded-lg bg-green-50 dark:bg-green-500/10 p-4 border border-green-100 dark:border-green-500/20">
-                    <p class="text-sm font-medium text-green-900 dark:text-green-500">Biggest decrease</p>
-                    <p class="text-lg font-bold mt-1 text-red-700 dark:text-red-300">{{ $this->biggestDecrease['name'] }}</p>
-                    <p class="text-sm mt-1 text-green-600 dark:text-green-400">RM {{ number_format(min(0, $this->biggestDecrease['difference']), 2) }}</p>
+                <div class="bg-emerald-500/8 border border-emerald-500/20 rounded-xl p-4">
+                    <p class="text-xs font-medium text-emerald-400">Biggest decrease</p>
+                    <p class="text-base font-bold mt-1 text-emerald-300">{{ $this->biggestDecrease['name'] }}</p>
+                    <p class="text-xs mt-1 text-emerald-400">RM {{ number_format(min(0, $this->biggestDecrease['difference']), 2) }}</p>
                 </div>
             </div>
         </div>
     </div>
 
+    {{-- Spending Trend Chart --}}
     <div
-        class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate insight-delay-3 insight-hover"
+        class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate insight-delay-3 insight-hover"
         wire:key="insights-trend-{{ $month }}"
         x-data="{
             chart: null,
@@ -489,66 +516,72 @@ new class extends Component
         }"
         x-init="init()"
     >
-        <div class="flex items-center justify-between mb-4">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+        <div class="flex items-center justify-between mb-5">
             <div>
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Spending trend</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $this->monthlySpike['message'] }}</p>
+                <h3 class="text-sm font-semibold text-white">Spending trend</h3>
+                <p class="text-[11px] text-zinc-500 mt-0.5">{{ $this->monthlySpike['message'] }}</p>
             </div>
         </div>
         <div x-ref="chart"></div>
     </div>
 
+    {{-- Spending Patterns + Recurring --}}
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate insight-delay-4 insight-hover">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Spending patterns</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">These are the habits that appear most often in your transactions.</p>
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate insight-delay-4 insight-hover">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <h3 class="text-sm font-semibold text-white">Spending patterns</h3>
+            <p class="text-[11px] text-zinc-500 mt-0.5">These are the habits that appear most often in your transactions.</p>
             <div class="mt-4 space-y-3">
-                <div class="rounded-lg bg-gray-50 dark:bg-zinc-800 p-3">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">Highest spending day</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ $this->highestSpendingDay['name'] }} — RM {{ number_format($this->highestSpendingDay['total'], 2) }}</p>
+                <div class="bg-zinc-800/60 border border-zinc-800 rounded-xl p-4">
+                    <p class="text-xs font-medium text-zinc-300">Highest spending day</p>
+                    <p class="text-xs text-zinc-500 mt-1">{{ $this->highestSpendingDay['name'] }} — RM {{ number_format($this->highestSpendingDay['total'], 2) }}</p>
                 </div>
-                <div class="rounded-lg bg-gray-50 dark:bg-zinc-800 p-3">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">Weekend vs weekday</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ $this->weekendVsWeekday['message'] }}</p>
+                <div class="bg-zinc-800/60 border border-zinc-800 rounded-xl p-4">
+                    <p class="text-xs font-medium text-zinc-300">Weekend vs weekday</p>
+                    <p class="text-xs text-zinc-500 mt-1">{{ $this->weekendVsWeekday['message'] }}</p>
                 </div>
-                <div class="rounded-lg bg-gray-50 dark:bg-zinc-800 p-3">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">Peak spending day</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ $this->monthlySpike['message'] }} Total: RM {{ number_format($this->monthlySpike['total'], 2) }}</p>
+                <div class="bg-zinc-800/60 border border-zinc-800 rounded-xl p-4">
+                    <p class="text-xs font-medium text-zinc-300">Peak spending day</p>
+                    <p class="text-xs text-zinc-500 mt-1">{{ $this->monthlySpike['message'] }} Total: RM {{ number_format($this->monthlySpike['total'], 2) }}</p>
                 </div>
             </div>
         </div>
 
-        <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate insight-delay-5 insight-hover">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Recurring expenses</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">These are the bills and subscriptions that repeat regularly.</p>
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate insight-delay-5 insight-hover">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <h3 class="text-sm font-semibold text-white">Recurring expenses</h3>
+            <p class="text-[11px] text-zinc-500 mt-0.5">These are the bills and subscriptions that repeat regularly.</p>
             <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div class="rounded-lg bg-gray-50 dark:bg-zinc-800 p-3">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Recurring items</p>
-                    <p class="text-lg font-bold mt-1 text-gray-900 dark:text-white">{{ $this->recurringSummary['count'] }}</p>
+                <div class="bg-zinc-800/60 border border-zinc-800 rounded-xl p-4">
+                    <p class="text-xs text-zinc-500">Recurring items</p>
+                    <p class="text-lg font-bold mt-1 text-white tabular-nums">{{ $this->recurringSummary['count'] }}</p>
                 </div>
-                <div class="rounded-lg bg-gray-50 dark:bg-zinc-800 p-3">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Monthly recurring</p>
-                    <p class="text-lg font-bold mt-1 text-gray-900 dark:text-white">RM {{ number_format($this->recurringSummary['total'], 2) }}</p>
+                <div class="bg-zinc-800/60 border border-zinc-800 rounded-xl p-4">
+                    <p class="text-xs text-zinc-500">Monthly recurring</p>
+                    <p class="text-lg font-bold mt-1 text-white tabular-nums">RM {{ number_format($this->recurringSummary['total'], 2) }}</p>
                 </div>
-                <div class="rounded-lg bg-gray-50 dark:bg-zinc-800 p-3">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Next due</p>
-                    <p class="text-sm font-medium mt-1 text-gray-900 dark:text-white">{{ $this->recurringSummary['next_due'] }}</p>
+                <div class="bg-zinc-800/60 border border-zinc-800 rounded-xl p-4">
+                    <p class="text-xs text-zinc-500">Next due</p>
+                    <p class="text-xs font-medium mt-1 text-zinc-300">{{ $this->recurringSummary['next_due'] }}</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm border border-gray-100 dark:border-zinc-800 insight-animate">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Recommended actions</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Small changes here can help reduce monthly spending.</p>
+    {{-- Recommended Actions --}}
+    <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden insight-animate">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+        <h3 class="text-sm font-semibold text-white">Recommended actions</h3>
+        <p class="text-[11px] text-zinc-500 mt-0.5">Small changes here can help reduce monthly spending.</p>
         <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
             @forelse($this->recommendations as $item)
-                <div class="rounded-lg bg-gray-50 dark:bg-zinc-800 p-3">
-                    <p class="text-sm text-gray-700 dark:text-gray-200">{{ $item }}</p>
+                <div class="bg-zinc-800/60 border border-zinc-800 rounded-xl p-4">
+                    <p class="text-xs text-zinc-300">{{ $item }}</p>
                 </div>
             @empty
-                <div class="rounded-lg bg-gray-50 dark:bg-zinc-800 p-3 md:col-span-3">
-                    <p class="text-sm text-gray-700 dark:text-gray-200">No recommendations yet. Add more transactions to unlock smarter insights.</p>
+                <div class="bg-zinc-800/60 border border-zinc-800 rounded-xl p-4 md:col-span-3">
+                    <p class="text-xs text-zinc-400">No recommendations yet. Add more transactions to unlock smarter insights.</p>
                 </div>
             @endforelse
         </div>

@@ -147,8 +147,11 @@ new class extends Component {
 
 <div>
     {{-- Header --}}
-    <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold">Recurring Transactions</h2>
+    <div class="flex items-start justify-between flex-wrap gap-4 mb-7 animate-slide-up" style="animation-delay: 0s">
+        <div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400 mb-1">Finance</p>
+            <h1 class="text-xl font-bold text-white">Recurring Transactions</h1>
+        </div>
         <flux:button wire:click="openForm" variant="primary" icon="plus">
             Add Recurring
         </flux:button>
@@ -214,55 +217,72 @@ new class extends Component {
     {{-- Pending Section --}}
     @php $pending = $this->recurringList->where('is_active', true)->filter(fn($r) => $r->next_due_date->lte(now())); @endphp
     @if($pending->count() > 0)
-    <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6">
-        <p class="text-sm font-semibold text-amber-400 mb-3">
-            {{ $pending->count() }} Transaction Pending Confirmation
-        </p>
-        @foreach($pending as $item)
-        <div class="flex items-center justify-between py-2 border-b border-amber-500/20 last:border-0">
-            <div>
-                <p class="text-sm font-medium">{{ $item->name }}</p>
-                <p class="text-xs text-amber-400/70">Due: {{ $item->next_due_date->format('d M Y') }}</p>
-            </div>
+    <div class="relative flex items-center justify-between flex-wrap gap-3 bg-amber-500/8 border border-amber-500/25 rounded-2xl px-4 py-3.5 mb-5 overflow-hidden animate-slide-up" style="animation-delay: 0.04s">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent"></div>
+        <div class="flex flex-col gap-2 w-full">
             <div class="flex items-center gap-3">
-                <span class="text-sm font-semibold {{ $item->type === 'income' ? 'text-green-500' : 'text-red-400' }}">
-                    {{ $item->type === 'income' ? '+' : '-' }}RM {{ number_format($item->amount, 2) }}
-                </span>
-                <flux:button wire:click="confirm({{ $item->id }})" size="sm" variant="primary">
-                    Confirm
-                </flux:button>
-                <flux:button wire:click="skip({{ $item->id }})" size="sm" variant="ghost">
-                    Skip
-                </flux:button>
+                <div class="relative w-2 h-2 shrink-0">
+                    <span class="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-75"></span>
+                    <span class="relative block w-2 h-2 rounded-full bg-amber-400"></span>
+                </div>
+                <p class="text-sm font-semibold text-amber-400">
+                    {{ $pending->count() }} Transaction{{ $pending->count() > 1 ? 's' : '' }} Pending Confirmation
+                </p>
             </div>
+            @foreach($pending as $item)
+            <div class="flex items-center justify-between py-2 border-b border-amber-500/20 last:border-0 pl-5">
+                <div>
+                    <p class="text-sm font-medium text-white">{{ $item->name }}</p>
+                    <p class="text-xs text-amber-400/70">Due: {{ $item->next_due_date->format('d M Y') }}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm font-semibold {{ $item->type === 'income' ? 'text-emerald-400' : 'text-rose-400' }}">
+                        {{ $item->type === 'income' ? '+' : '-' }}RM {{ number_format($item->amount, 2) }}
+                    </span>
+                    <flux:button wire:click="confirm({{ $item->id }})" size="sm" variant="primary">
+                        Confirm
+                    </flux:button>
+                    <flux:button wire:click="skip({{ $item->id }})" size="sm" variant="ghost">
+                        Skip
+                    </flux:button>
+                </div>
+            </div>
+            @endforeach
         </div>
-        @endforeach
     </div>
     @endif
 
     {{-- List --}}
-    <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm overflow-hidden">
+    <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl overflow-hidden animate-slide-up" style="animation-delay: 0.08s">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+        <div class="flex items-center justify-between px-5 pt-5 pb-4">
+            <h3 class="text-sm font-semibold text-white">Recurring</h3>
+        </div>
         @forelse($this->recurringList as $item)
-        <div class="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-            <div class="flex items-center gap-3">
-                <div
-                    wire:click="toggleActive({{ $item->id }})"
-                    class="w-2 h-2 rounded-full cursor-pointer {{ $item->is_active ? 'bg-green-400' : 'bg-zinc-400' }}"
-                    title="{{ $item->is_active ? 'Active' : 'Paused' }}"
-                ></div>
-                <div>
-                    <p class="font-medium text-sm {{ $item->is_active ? '' : 'opacity-50' }}">
-                        {{ $item->name }}
-                    </p>
-                    <p class="text-xs text-zinc-400">
-                        {{ ucfirst($item->frequency) }}
-                        • Next: {{ $item->next_due_date->format('d M Y') }}
-                        @if($item->category) • {{ $item->category->name }} @endif
-                    </p>
-                </div>
+        <div class="flex items-center gap-4 px-5 py-3.5 border-t border-zinc-800/60 hover:bg-zinc-800/30 transition-colors duration-150">
+            <div
+                wire:click="toggleActive({{ $item->id }})"
+                class="cursor-pointer shrink-0"
+                title="{{ $item->is_active ? 'Active – click to pause' : 'Paused – click to activate' }}"
+            >
+                @if($item->is_active)
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 block"></span>
+                @else
+                    <span class="w-2 h-2 rounded-full bg-zinc-600 block"></span>
+                @endif
             </div>
-            <div class="flex items-center gap-4">
-                <span class="font-semibold text-sm {{ $item->type === 'income' ? 'text-green-500' : 'text-red-400' }}">
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-sm text-white {{ $item->is_active ? '' : 'opacity-50' }} truncate">
+                    {{ $item->name }}
+                </p>
+                <p class="text-xs text-zinc-500">
+                    {{ ucfirst($item->frequency) }}
+                    &bull; Next: {{ $item->next_due_date->format('d M Y') }}
+                    @if($item->category) &bull; {{ $item->category->name }} @endif
+                </p>
+            </div>
+            <div class="flex items-center gap-4 shrink-0">
+                <span class="font-semibold text-sm {{ $item->type === 'income' ? 'text-emerald-400' : 'text-rose-400' }}">
                     {{ $item->type === 'income' ? '+' : '-' }}RM {{ number_format($item->amount, 2) }}
                 </span>
                 <div class="flex gap-2">
@@ -272,9 +292,14 @@ new class extends Component {
             </div>
         </div>
         @empty
-        <div class="flex flex-col items-center justify-center py-12 text-zinc-400">
-            <p class="text-sm">No recurring transactions yet.</p>
-            <p class="text-xs mt-1">Add your first one to get started.</p>
+        <div class="flex flex-col items-center justify-center py-16 gap-3 border-t border-zinc-800/60">
+            <div class="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-zinc-400">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+            </div>
+            <p class="text-sm text-zinc-500">No recurring transactions yet</p>
+            <p class="text-xs text-zinc-400">Add your first one to get started</p>
         </div>
         @endforelse
     </div>

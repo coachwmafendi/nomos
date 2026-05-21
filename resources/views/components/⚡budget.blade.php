@@ -39,7 +39,7 @@ new #[Title('Manage Your Budget')] class extends Component {
         foreach ($budgets as $budget) {
             $spent = Transaction::where('category_id', $budget->category_id)
                 ->where('type', 'expense')
-                ->whereRaw("strftime('%Y-%m', datetime(date)) = ?", [
+                ->whereRaw(\App\Support\DateExpression::format('%Y-%m', 'date') . ' = ?', [
                     sprintf('%04d-%02d', $this->year, $this->month)
                 ])
                 ->sum('amount');
@@ -136,20 +136,26 @@ new #[Title('Manage Your Budget')] class extends Component {
 <div>
 
     {{-- Header --}}
-    <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
-        <h2 class="text-lg font-semibold">Monthly Budget</h2>
+    <div class="flex items-start justify-between flex-wrap gap-4 mb-7 animate-slide-up" style="animation-delay: 0s">
+        <div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400 mb-1">Finance</p>
+            <h1 class="text-xl font-bold text-white">Monthly Budget</h1>
+        </div>
         <flux:button wire:click="openForm()" icon="plus" variant="primary">
             Set Budget
         </flux:button>
     </div>
 
     {{-- Month Navigation --}}
-    <div class="flex items-center gap-4 mb-6">
-        <flux:button wire:click="previousMonth()" icon="chevron-left" variant="ghost" size="sm" />
-        <span class="text-base font-medium w-36 text-center">
-            {{ \Carbon\Carbon::create($year, $month)->format('F Y') }}
-        </span>
-        <flux:button wire:click="nextMonth()" icon="chevron-right" variant="ghost" size="sm" />
+    <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-4 mb-5 overflow-hidden animate-slide-up" style="animation-delay: 0.04s">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+        <div class="flex items-center justify-between gap-4">
+            <flux:button wire:click="previousMonth()" icon="chevron-left" variant="ghost" size="sm" />
+            <span class="text-base font-medium text-white w-36 text-center">
+                {{ \Carbon\Carbon::create($year, $month)->format('F Y') }}
+            </span>
+            <flux:button wire:click="nextMonth()" icon="chevron-right" variant="ghost" size="sm" />
+        </div>
     </div>
 
     {{-- Form Modal --}}
@@ -186,14 +192,16 @@ new #[Title('Manage Your Budget')] class extends Component {
 
     {{-- Budget List --}}
     @forelse($budgetList as $item)
-    <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-5 mb-3">
-        <div class="flex items-center justify-between mb-2">
-            <span class="font-medium">{{ $item['category'] }}</span>
+    @php $delay = 0.06 + ($loop->index * 0.06); @endphp
+    <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl overflow-hidden mb-3 animate-slide-up" style="animation-delay: {{ $delay }}s">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+        <div class="flex items-center justify-between gap-4 p-5">
+            <span class="font-medium text-white">{{ $item['category'] }}</span>
             <div class="flex items-center gap-3">
-                <span class="text-sm text-zinc-500">
-                    RM {{ number_format($item['spent'], 2) }}
-                    / RM {{ number_format($item['budget'], 2) }}
-                </span>
+                <div class="text-right">
+                    <span class="text-zinc-300 font-medium text-sm">RM {{ number_format($item['spent'], 2) }}</span>
+                    <span class="text-zinc-500 text-sm"> / RM {{ number_format($item['budget'], 2) }}</span>
+                </div>
                 <flux:button wire:click="openForm({{ $item['id'] }})" icon="pencil" variant="ghost" size="xs" />
                 <flux:button wire:click="delete({{ $item['id'] }})" icon="trash" variant="ghost" size="xs"
                     wire:confirm="Delete this budget?" />
@@ -201,31 +209,40 @@ new #[Title('Manage Your Budget')] class extends Component {
         </div>
 
         {{-- Progress Bar --}}
-        <div class="w-full bg-zinc-100 dark:bg-zinc-700 rounded-full h-3 overflow-hidden">
-            <div
-                class="h-3 rounded-full transition-all duration-500
-                    {{ $item['status'] === 'exceeded' ? 'bg-red-500'
-                    : ($item['status'] === 'warning' ? 'bg-yellow-400'
-                    : 'bg-green-500') }}"
-                style="width: {{ $item['percent'] }}%"
-            ></div>
-        </div>
-
-        <div class="flex justify-between text-xs mt-1">
-            <span class="{{ $item['status'] === 'exceeded' ? 'text-red-500 font-semibold'
-                         : ($item['status'] === 'warning' ? 'text-yellow-500'
-                         : 'text-zinc-400') }}">
-                @if($item['status'] === 'exceeded') ⚠️ Exceeded!
-                @elseif($item['status'] === 'warning') Near limit
-                @else On track
-                @endif
-            </span>
-            <span class="text-zinc-400">{{ $item['percent'] }}%</span>
+        <div class="px-5 pb-4">
+            <div class="flex items-center justify-between text-xs text-zinc-500 mb-1.5">
+                <span class="{{ $item['status'] === 'exceeded' ? 'text-rose-400'
+                             : ($item['status'] === 'warning' ? 'text-amber-400'
+                             : 'text-emerald-400') }}">
+                    @if($item['status'] === 'exceeded') Exceeded
+                    @elseif($item['status'] === 'warning') Near limit
+                    @else On track
+                    @endif
+                </span>
+                <span>{{ $item['percent'] }}%</span>
+            </div>
+            <div class="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                <div class="h-1.5 rounded-full bg-gradient-to-r animate-grow-x
+                    {{ $item['status'] === 'exceeded' ? 'from-rose-500 to-red-500'
+                    : ($item['status'] === 'warning' ? 'from-amber-500 to-orange-500'
+                    : 'from-emerald-500 to-teal-500') }}"
+                    style="width: {{ $item['percent'] }}%"
+                ></div>
+            </div>
         </div>
     </div>
     @empty
-    <div class="text-center text-zinc-400 py-12">
-        No budget set for this month.
+    <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl overflow-hidden animate-slide-up" style="animation-delay: 0.06s">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+        <div class="flex flex-col items-center justify-center py-16 gap-3">
+            <div class="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-zinc-400">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                </svg>
+            </div>
+            <p class="text-sm text-zinc-500">No budgets yet</p>
+            <p class="text-xs text-zinc-400">Add your first budget to get started</p>
+        </div>
     </div>
     @endforelse
 

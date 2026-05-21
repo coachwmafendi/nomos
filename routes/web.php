@@ -3,7 +3,6 @@
 use App\Http\Controllers\ExportController;
 use Illuminate\Support\Facades\Route;
 
-
 Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -18,8 +17,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('/insights', 'pages.insights')->name('insights');
 
-    
-    //route for export
+    // route for export
     Route::get('/transactions/export', [ExportController::class, 'csv'])->name('transactions.export');
 
 });

@@ -2,12 +2,9 @@
 
 namespace App\Models;
 
-use App\Models\Category;
-use App\Models\User;
 use App\Models\Scopes\UserTransactionScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 
 class Transaction extends Model
 {
@@ -26,7 +23,7 @@ class Transaction extends Model
     }
 
     protected $casts = [
-        'date'   => 'datetime',
+        'date' => 'datetime',
         'amount' => 'decimal:2',
     ];
 
@@ -50,5 +47,4 @@ class Transaction extends Model
     {
         return $this->hasOne(TransactionAttachment::class)->latestOfMany();
     }
-
 }

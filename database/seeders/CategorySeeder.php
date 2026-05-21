@@ -14,7 +14,7 @@ class CategorySeeder extends Seeder
             ['name' => 'Food & Drinks',   'type' => 'expense'],
             ['name' => 'Transport',        'type' => 'expense'],
             ['name' => 'Shopping',         'type' => 'expense'],
-            ['name' => 'Bills & Utilities','type' => 'expense'],
+            ['name' => 'Bills & Utilities', 'type' => 'expense'],
             ['name' => 'Health/Medical',           'type' => 'expense'],
             ['name' => 'Business',           'type' => 'expense'],
             ['name' => 'Entertainment',    'type' => 'expense'],
@@ -31,7 +31,7 @@ class CategorySeeder extends Seeder
             ['name' => 'Investment',       'type' => 'income'],
             ['name' => 'Commission',        'type' => 'income'],
             ['name' => 'Gift',             'type' => 'income'],
-           ['name' => 'Bonus',        'type' => 'income'],
+            ['name' => 'Bonus',        'type' => 'income'],
             ['name' => 'Pension',        'type' => 'income'],
             ['name' => 'Other Income',     'type' => 'income'],
         ];

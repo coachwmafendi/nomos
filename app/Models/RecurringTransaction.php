@@ -21,11 +21,11 @@ class RecurringTransaction extends Model
     ];
 
     protected $casts = [
-        'amount'        => 'decimal:2',
-        'start_date'    => 'date',
+        'amount' => 'decimal:2',
+        'start_date' => 'date',
         'next_due_date' => 'date',
-        'end_date'      => 'date',
-        'is_active'     => 'boolean',
+        'end_date' => 'date',
+        'is_active' => 'boolean',
     ];
 
     public function user(): BelongsTo
@@ -41,10 +41,10 @@ class RecurringTransaction extends Model
     public function calculateNextDueDate()
     {
         return match ($this->frequency) {
-            'daily'   => $this->next_due_date->addDay(),
-            'weekly'  => $this->next_due_date->addWeek(),
+            'daily' => $this->next_due_date->addDay(),
+            'weekly' => $this->next_due_date->addWeek(),
             'monthly' => $this->next_due_date->addMonth(),
-            'yearly'  => $this->next_due_date->addYear(),
+            'yearly' => $this->next_due_date->addYear(),
         };
     }
 

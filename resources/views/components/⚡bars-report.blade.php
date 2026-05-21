@@ -20,7 +20,7 @@ new class extends Component {
     public function availableYears(): array
     {
         $years = Transaction::query()
-            ->selectRaw("CAST(strftime('%Y', date) AS INTEGER) as year")
+            ->selectRaw(\App\Support\DateExpression::year() . ' as year')
             ->distinct()
             ->orderBy('year', 'desc')
             ->pluck('year')
@@ -58,10 +58,10 @@ new class extends Component {
     {
         return Transaction::query()
             ->when($this->selectedYear, fn ($q) =>
-                $q->whereRaw("strftime('%Y', date) = ?", [(string) $this->selectedYear])
+                $q->whereRaw(\App\Support\DateExpression::year() . ' = ?', [(string) $this->selectedYear])
             )
             ->when($this->selectedMonth !== '', fn ($q) =>
-                $q->whereRaw("strftime('%m', date) = ?", [str_pad($this->selectedMonth, 2, '0', STR_PAD_LEFT)])
+                $q->whereRaw(\App\Support\DateExpression::month() . ' = ?', [str_pad($this->selectedMonth, 2, '0', STR_PAD_LEFT)])
             );
     }
 
@@ -105,12 +105,12 @@ new class extends Component {
         $rows = Transaction::query()
             ->selectRaw("
                 type,
-                CAST(strftime('%m', date) AS INTEGER) as month,
+                " . \App\Support\DateExpression::month() . " as month,
                 SUM(amount) as total
             ")
-            ->whereRaw("strftime('%Y', date) = ?", [(string) $this->selectedYear])
+            ->whereRaw(\App\Support\DateExpression::year() . ' = ?', [(string) $this->selectedYear])
             ->whereIn('type', ['income', 'expense'])
-            ->groupBy('type', DB::raw("strftime('%m', date)"))
+            ->groupBy('type', DB::raw(\App\Support\DateExpression::month()))
             ->get();
 
         $income = array_fill(1, 12, 0);
@@ -145,12 +145,14 @@ new class extends Component {
 ?>
 
 <div class="p-6 space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-            <flux:heading size="xl">Reports</flux:heading>
-            <flux:subheading>{{ $this->reportTitle }}</flux:subheading>
-        </div>
 
+    {{-- Page Header --}}
+    <div class="flex items-start justify-between flex-wrap gap-4 mb-7 animate-slide-up" style="animation-delay: 0s">
+        <div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400 mb-1">Analytics</p>
+            <h1 class="text-xl font-bold text-white">Reports</h1>
+            <p class="text-xs text-zinc-500 mt-1">{{ $this->reportTitle }}</p>
+        </div>
         <div class="grid gap-3" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
             <flux:select wire:model.live="selectedMonth">
                 <flux:select.option value="">All Months</flux:select.option>
@@ -167,58 +169,95 @@ new class extends Component {
         </div>
     </div>
 
-    <div class="grid gap-4" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
-            <flux:subheading>Total Income</flux:subheading>
-            <p class="text-2xl font-bold text-green-500 mt-1">
-                RM {{ number_format($this->summary['income'], 2) }}
+    {{-- Summary Stat Cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {{-- Income --}}
+        <div class="group relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden animate-slide-up hover:border-zinc-700 transition-colors duration-200" style="animation-delay: 0.04s">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent"></div>
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+                    </svg>
+                </div>
+                <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Income</span>
+            </div>
+            <p class="text-2xl font-bold text-white tabular-nums leading-none">
+                <span class="text-sm font-semibold text-zinc-400 mr-0.5">RM</span>{{ number_format($this->summary['income'], 2) }}
             </p>
+            <p class="text-xs text-zinc-400 mt-2">Selected period</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
-            <flux:subheading>Total Expense</flux:subheading>
-            <p class="text-2xl font-bold text-red-500 mt-1">
-                RM {{ number_format($this->summary['expense'], 2) }}
+        {{-- Expense --}}
+        <div class="group relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden animate-slide-up hover:border-zinc-700 transition-colors duration-200" style="animation-delay: 0.08s">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-rose-500/60 to-transparent"></div>
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-9 h-9 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6L9 12.75l4.306-4.307a11.95 11.95 0 015.814 5.519l2.74 1.22m0 0l-5.94 2.28m5.94-2.28l-2.28-5.941" />
+                    </svg>
+                </div>
+                <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Expense</span>
+            </div>
+            <p class="text-2xl font-bold text-white tabular-nums leading-none">
+                <span class="text-sm font-semibold text-zinc-400 mr-0.5">RM</span>{{ number_format($this->summary['expense'], 2) }}
             </p>
+            <p class="text-xs text-zinc-400 mt-2">Selected period</p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5">
-            <flux:subheading>Balance</flux:subheading>
-            <p class="text-2xl font-bold mt-1 {{ $this->summary['balance'] >= 0 ? 'text-blue-500' : 'text-red-500' }}">
-                RM {{ number_format($this->summary['balance'], 2) }}
+        {{-- Balance --}}
+        <div class="group relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden animate-slide-up hover:border-zinc-700 transition-colors duration-200" style="animation-delay: 0.12s">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/60 to-transparent"></div>
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
+                    </svg>
+                </div>
+                <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">Balance</span>
+            </div>
+            <p class="text-2xl font-bold tabular-nums leading-none {{ $this->summary['balance'] >= 0 ? 'text-white' : 'text-rose-400' }}">
+                <span class="text-sm font-semibold text-zinc-400 mr-0.5">RM</span>{{ number_format($this->summary['balance'], 2) }}
             </p>
+            <p class="text-xs text-zinc-400 mt-2">Selected period</p>
         </div>
     </div>
 
     {{-- Report Card Summary --}}
     <div class="grid gap-6 lg:grid-cols-2">
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5 space-y-4">
-            <div>
-                <flux:heading size="md">Expense by Category</flux:heading>
-                <flux:subheading>Breakdown for selected period</flux:subheading>
+
+        {{-- Expense by Category Table --}}
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl overflow-hidden animate-slide-up" style="animation-delay: 0.16s">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <div class="px-5 pt-5 pb-4">
+                <h3 class="text-sm font-semibold text-white">Expense by Category</h3>
+                <p class="text-[11px] text-zinc-500 mt-0.5">Breakdown for selected period</p>
             </div>
-            <div>
-
-
-    
 
             <flux:table>
                 <flux:table.columns>
-                    <flux:table.column>Category</flux:table.column>
-                    <flux:table.column align="end">Total</flux:table.column>
+                    <flux:table.column class="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">Category</flux:table.column>
+                    <flux:table.column align="end" class="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">Total</flux:table.column>
                 </flux:table.columns>
 
                 <flux:table.rows>
                     @forelse($this->categoryBreakdown as $row)
-                        <flux:table.row :key="$row->category_name">
-                            <flux:table.cell>{{ $row->category_name }}</flux:table.cell>
-                            <flux:table.cell align="end">RM {{ number_format($row->total, 2) }}</flux:table.cell>
+                        <flux:table.row :key="$row->category_name" class="hover:bg-zinc-800/30 transition-colors">
+                            <flux:table.cell>
+                                <span class="bg-zinc-800 text-zinc-400 text-xs px-2 py-0.5 rounded-full">{{ $row->category_name }}</span>
+                            </flux:table.cell>
+                            <flux:table.cell align="end" class="text-rose-400">RM {{ number_format($row->total, 2) }}</flux:table.cell>
                         </flux:table.row>
                     @empty
                         <flux:table.row>
                             <flux:table.cell colspan="2">
-                                <div class="py-8 text-center text-gray-500 dark:text-zinc-400">
-                                    No expense data for this period.
+                                <div class="flex flex-col items-center justify-center py-16 gap-3">
+                                    <div class="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
+                                        </svg>
+                                    </div>
+                                    <p class="text-sm text-zinc-500">No data for this period</p>
                                 </div>
                             </flux:table.cell>
                         </flux:table.row>
@@ -227,10 +266,14 @@ new class extends Component {
             </flux:table>
         </div>
 
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 p-5 space-y-4">
-            <div>
-                <flux:heading size="md">Monthly Trend</flux:heading>
-                <flux:subheading>Income vs expense for {{ $selectedYear }}</flux:subheading>
+        {{-- Monthly Trend Chart --}}
+        <div class="relative bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 overflow-hidden animate-slide-up" style="animation-delay: 0.2s">
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-600/40 to-transparent"></div>
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <h3 class="text-sm font-semibold text-white">Monthly Trend</h3>
+                    <p class="text-[11px] text-zinc-500 mt-0.5">Income vs expense for {{ $selectedYear }}</p>
+                </div>
             </div>
 
             <div
@@ -246,7 +289,6 @@ new class extends Component {
     {{-- Chart component --}}
     <livewire:transaction-chart />
 
-    </div>
 </div>
 
 @script
